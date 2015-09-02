@@ -1,5 +1,5 @@
 {application, 'jc',
- [{description, "A simple destributed caching system"},
+ [{description, "A simple, distributed, in-memory caching system"},
   {vsn, "git"},
   {registered, [
 		jc,

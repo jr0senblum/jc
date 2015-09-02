@@ -1,4 +1,4 @@
-j_cache
+JC
 ====
 
 ##Erlang, Distributable, In-Memory Cache with Pub/Sub,  Serialization and JSON-Query Support.
@@ -12,24 +12,23 @@ j_cache
   * {Map, Key} must be unique	
   * Maps, Keys and Values can be any Erlang term
   * TTL is time-to-live in seconds
-* Consistency Through Serialization: An alternative API allows
+* Consistency through Serialization: An alternative API allows
     for a sequence-number parameter on the put/x, evict/x, match/x 
     and remove/x operations. Operations whose sequence number is
     lower than the current (per map) max are disallowed thereby
     ensuring, for example, that stale puts do not overwrite 
-    "fresher" ones
+    "fresh" ones
  *  JSON Query Support
      * Query by JSON: When Values are JSON, evict_match/2,
        evict_all_match/1 and values_match/2 can search or evict
        keys whose values match a java-style, dot-path, string:
        "id.type=3"
     * Ad-hoc, Index Support: In order to support faster
-      operations, (2-3 orders of magnitude faster in some
-      situations), each map can have up to 4, dot-path, strings 
-      configured for which j_cache will create index support.
-    * Auto Identification and Creation of JSON Indexes -
-      sys.config defines parameters that define and enable an
-      auto-detect of JSON queries to index.
+      operations, (2-3 orders of magnitude), each map can have up to 4,
+       dot-path, strings configured for which jc will create index
+       support.
+    * Auto Index Recognition - Ability to detect frequently used JSON querries
+      and automatically start indexing on them.
 * User Controlled Eviction
   * Map-level TTL: A job runs at configured intervals and removes
   items whose create-date is older than a map-specific, configured 

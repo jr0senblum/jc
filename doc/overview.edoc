@@ -1,5 +1,5 @@
 -*- html -*-
-JCache overview page
+JC
 
 
 @author Jim Rosenblum <jrosenblum@carelogistics.com>
@@ -8,8 +8,8 @@ JCache overview page
 @title Welcome to JCache
 
 @doc 
-== JCache == 
-== Erlang, Distributable, In-Memory Cache with Pub/Sub ==
+== JC == 
+== Erlang, Distributable, In-Memory Cache with Pub/Sub, Serializationand JSON-Query Support ==
 ===Features===
 <ul>
 <li>Cache entries are Map, Key, Value, [TTL], [Sequence]
@@ -22,12 +22,12 @@ in other caching systems</li>
 <li>TTL is time-to-live in seconds</li>
 </ul>
 </li>
-<li>Consistency Through Serialization: An alternative API allows
+<li>Consistency through Serialization: An alternative API allows
 for a sequence-number parameter on the put/x, evict/x, match/x
 and remove/x operations. Operations whose sequence number is
 lower than the current (per map) max are disallowed thereby
 ensuring, for example, that stale puts do not overwrite
-“fresher” ones</li>
+“fresh” ones</li>
 <li>JSON Query Support
 <ul>
 <li>Query by JSON: When Values are JSON, evict_match/2,
@@ -35,12 +35,12 @@ evict_all_match/1 and values_match/2 can search or evict
 keys whose values match a java-style, dot-path, string:
 “id.type=3”</li>
 <li>Ad-hoc, Index Support: In order to support faster
-operations, (2-3 orders of magnitude faster in some
-situations), each map can have up to 4, dot-path, strings
-configured for which j_cache will create index support.</li>
-<li>Auto Identification and Creation of JSON Indexes -
-sys.config defines parameters that define and enable an
-auto-detect of JSON queries to index.</li>
+operations, (2-3 orders of magnitude), each map can have
+  up to 4, dot-path, strings configured for which jc
+  will create index support.</li>
+<li>Auto Index Recognition - Ability to detect frequently used JSON
+  querries and automatically start indexing on them.
+</li>
 </ul>
 </li>
 <li>User Controlled Eviction
