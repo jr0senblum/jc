@@ -515,7 +515,7 @@ split(Criteria)->
 
 %% jsonx NIF doesnt compile on windows so use erlang library
 
--ifdef('WIN').
+-ifdef('NO_NIF').
 -define(JSON_DECODE(X), jsone:decode(X)).
 -else.
 -define(JSON_DECODE(X), jsonx:decode(X)).

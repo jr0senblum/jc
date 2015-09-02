@@ -14,7 +14,7 @@ JC
   * TTL is time-to-live in seconds
 * Consistency through Serialization: An alternative API allows
     for a sequence-number parameter on the put/x, evict/x, match/x 
-    and remove/x operations. Operations whose sequence number is
+    and remove/x opperations. Operations whose sequence number is
     lower than the current (per map) max are disallowed thereby
     ensuring, for example, that stale puts do not overwrite 
     "fresh" ones

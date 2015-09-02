@@ -392,7 +392,7 @@ map_match(Map, Path, Test, Fun) ->
     lists:foldl(F, [], Recs).
 
 
--ifdef('WIN').
+-ifdef('NO_NIF').
 -define(JSON_DECODE(X), jsone:decode(X)).
 -else.
 -define(JSON_DECODE(X), jsonx:decode(X)).
