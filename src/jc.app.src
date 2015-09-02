@@ -24,9 +24,16 @@
   {mod, {'jc_app', []}},
   {applications,
    [kernel,
-    stdlib
+    stdlib,
+    sasl, 
+    stdlib, 
+    syntax_tools,
+    compiler,
+    lager,
+    jsonx,
+    ej
    ]},
-  {included_applications, []},
+  {included_applications, [mnesia]},
   {env,[]},
   {modules, []},
 
