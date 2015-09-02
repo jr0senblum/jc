@@ -1,0 +1,36 @@
+{application, 'jc',
+ [{description, "A simple destributed caching system"},
+  {vsn, "git"},
+  {registered, [
+		jc,
+		jc_app,
+		jc_analyzer,
+		jc_bridge,
+		jc_cluster,
+		jc_eviction_manager,	
+		jc_psub,
+		jc_s,
+		jc_sequence,
+		jc_store,	
+		jc_sup
+	       ]},
+  {registered, 
+   [jc_analyzer,
+    jc_bridge,
+    jc_eviction_manager, 
+    jc_psub,
+    jc_sequence,
+    jc_sup ]},
+  {mod, {'jc_app', []}},
+  {applications,
+   [kernel,
+    stdlib
+   ]},
+  {included_applications, []},
+  {env,[]},
+  {modules, []},
+
+  {contributors, []},
+  {licenses, []},
+  {links, []}
+ ]}.

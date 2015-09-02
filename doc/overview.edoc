@@ -1,0 +1,331 @@
+-*- html -*-
+JCache overview page
+
+
+@author Jim Rosenblum <jrosenblum@carelogistics.com>
+@copyright 2013-2015 Jim Rosenblum
+@version 1.2.0.22
+@title Welcome to JCache
+
+@doc 
+== JCache == 
+== Erlang, Distributable, In-Memory Cache with Pub/Sub ==
+===Features===
+<ul>
+<li>Cache entries are Map, Key, Value, [TTL], [Sequence]
+<ul>
+<li>Maps represent a name-space for Keys - similar to the notion
+of ‘bucket’
+in other caching systems</li>
+<li>{Map, Key} must be unique</li>
+<li>Maps, Keys and Values can be any Erlang term</li>
+<li>TTL is time-to-live in seconds</li>
+</ul>
+</li>
+<li>Consistency Through Serialization: An alternative API allows
+for a sequence-number parameter on the put/x, evict/x, match/x
+and remove/x operations. Operations whose sequence number is
+lower than the current (per map) max are disallowed thereby
+ensuring, for example, that stale puts do not overwrite
+“fresher” ones</li>
+<li>JSON Query Support
+<ul>
+<li>Query by JSON: When Values are JSON, evict_match/2,
+evict_all_match/1 and values_match/2 can search or evict
+keys whose values match a java-style, dot-path, string:
+“id.type=3”</li>
+<li>Ad-hoc, Index Support: In order to support faster
+operations, (2-3 orders of magnitude faster in some
+situations), each map can have up to 4, dot-path, strings
+configured for which j_cache will create index support.</li>
+<li>Auto Identification and Creation of JSON Indexes -
+sys.config defines parameters that define and enable an
+auto-detect of JSON queries to index.</li>
+</ul>
+</li>
+<li>User Controlled Eviction
+<ul>
+<li>Map-level TTL: A job runs at configured intervals and removes
+items whose create-date is older than a map-specific, configured
+number of seconds</li>
+<li>Item-level TTL: PUTS can include a TTL which defines when the
+item should be evicted. Used for shorter TTLs, as an exception
+to a Map-level TTL, or when more precision is required than
+offered by the Map-level TTL.</li>
+</ul>
+</li>
+<li>Pub/Sub
+<ul>
+<li>Clients can subscribe to Map events for a specific key or
+any key and for write, delete or either operations</li>
+<li>Clients can create and subscribe to arbitrary 'topic’s and
+broadcast arbitrary messages under those topic names</li>
+</ul>
+</li>
+<li>Bridge process that accepts messages from a client indicating
+cache operations, executes the cache operations and returns the
+results to the client. This has been used with JInterface to
+interoperate with CLOJURE and Java clients</li>
+<li>Fine-grained logging via lager</li>
+</ul>
+<p>###Cache Functions (jc)</p>
+<ul>
+<li>PUT
+<ul>
+<li>put(Map, Key, Value) -&gt; {ok, {key, Key}} | {error, Term}</li>
+<li>put(Map, Key, Value, TTLSescs) -&gt; {ok, {key, Key}} |
+{error, Term}</li>
+<li>put_all(Map, [{K,V},{K,V},…]) -&gt; {ok, No_Successful_Puts}</li>
+<li>put_all(Map, [{K,V},{K,V},…], TTLSecs) -&gt; {ok, No_Successful_Puts}</li>
+</ul>
+</li>
+<li>DELETE
+<ul>
+<li>clear(Map) -&gt; ok</li>
+<li>delete_map_since(Map, Age_In_Secs) -&gt; ok.</li>
+<li>evict(Map, Key) -&gt; ok</li>
+<li>evict_match(Map, Criteria = “Json.Path.Match=Value”) -&gt; ok</li>
+<li>evict_all_match(Criteria = “Json.Path.Match=Value”) -&gt; ok</li>
+<li>flush() -&gt; ok</li>
+<li>flush(silent) -&gt; ok &lt;-- Don’t send alerts to subscribers</li>
+<li>remove_items(Map, Keys) -&gt; {ok, [{K, V}, …]} for each Key
+removed.</li>
+</ul>
+</li>
+<li>GET
+<ul>
+<li>contains_key(Map, Key) -&gt; true | false.</li>
+<li>get(Map, Key) -&gt; {ok, Value} | miss</li>
+<li>get_all(Map, [K1, K2, …]) -&gt; {ok, {Found=[{K1,V1},…],
+Misses=[K2,…]}}</li>
+<li>key_set(Map) -&gt; {ok, [K1, K2, …]}</li>
+<li>values(Map) -&gt; {ok, [V1, V2, …]}</li>
+<li>values_match(Map, Criteria=“JSon.Path.Match=Value”) -&gt;
+{ok, [{K1,V1}, {K2,V2}, …]}</li>
+</ul>
+</li>
+<li>Meta
+<ul>
+<li>cache_nodes() -&gt; {nodes, {active, [Node1,… ]},
+{configured, [Node1,… ]}}</li>
+<li>cache_size() -&gt; {size, [{TableName, RecordCnt, Words}],…}</li>
+<li>map_size(Map) -&gt; {records, Count}</li>
+<li>maps() -&gt; [Map1, Map2,…]</li>
+<li>up() -&gt; {uptime, [{up_at, String},{now, String},
+{up_time {D, {H, M, S}}}]</li>
+</ul>
+</li>
+</ul>
+<h3><a id="Searializable_Cache_Functions_jc_s_89"></a>Searializable Cache Functions (jc_s)</h3>
+<ul>
+<li>trx_ret() :: {error, badarg | out_of_seq | term}</li>
+<li>Put
+<ul>
+<li>put(Map, Key, Value, Seq) -&gt; {ok, {key, Key}} | trx_ret</li>
+<li>put(Map, Key, Value, TTLSecs, Seq) -&gt; {ok, {key, Key}} |
+trx_ret</li>
+<li>put_all(Map, [{K,V},{K,V},…], Seq) -&gt; {ok,
+No_Successful_Puts} | trx_ret</li>
+<li>put_all(Map, [{K,V},{K,V},…], TTLSecs, Seq) -&gt; {ok,
+Num_Successful_Puts} | trx_ret</li>
+</ul>
+</li>
+<li>Delete
+<ul>
+<li>evict(Map, Key, Seq) -&gt; ok | trx_ret</li>
+<li>evict_match(Map, Criteria = “Json.Path.Match=Value”, Seq) -&gt;
+ok | trx_ret</li>
+<li>evict_all_match(Criteria = “Json.Path.Match=Value”, Seq) -&gt;
+ok | trx_ret</li>
+<li>remove_items(Map, Keys, Seq) -&gt; {ok, [{K, V}, …]} | |
+trx_ret</li>
+</ul>
+</li>
+<li>Meta
+<ul>
+<li>sequence() -&gt; {ok, [{Map, Highest_Number},… ]}</li>
+<li>sequence(Map) -&gt; {ok, Hightest_Number} | {ok, not_exist}</li>
+</ul>
+</li>
+</ul>
+<p>###Eviction Manager Functions (jc_eviction_manager)</p>
+<ul>
+<li>set_max_ttl(Map, Secs) -&gt; ok | {error, badarg}</li>
+<li>get_max_ttls() -&gt; [{Map, Secs}, …]</li>
+</ul>
+<p>###Pub/Sub Functions (jc_psub)</p>
+<ul>
+<li>map_subscribe(Pid, Map, Key|any, write|delete|any) -&gt; ok |
+{error, badarg}
+<ul>
+<li>client will receive
+<ul>
+<li>{map, key, delete}, or</li>
+<li>{map, key, write, value}</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>map_unsubscribe(Pid, Map, Key|any, write|delete|any) -&gt; ok |
+{error, badarg}</li>
+<li>topic_subscribe(Pid, Topic, Value) -&gt; ok | {error, badarg}
+<ul>
+<li>client will receive {Topic, Value}</li>
+</ul>
+</li>
+<li>topic_unsubscribe(Pid, Topic, Value) -&gt; ok | {error, badarg}</li>
+<li>topic_event(Topic, Value) -&gt; ok. &lt;-- Broadcasts Value to all
+subscribers of Topic</li>
+</ul>
+<p>###Indexing Functions (jc_store)</p>
+<ul>
+<li>start_indexing(Map, Path={bed,&quot;<a href="http://menu.id">menu.id</a>&quot;}) -&gt; ok |
+{error, no_indexes_available} |
+{error, Term}</li>
+<li>stop_indexing(Map, Path={bed,“menu”,“id”}) -&gt; ok</li>
+<li>indexes(Map) -&gt; [{{Map, Path}, Position},…] for all indexes
+of given Map</li>
+<li>indexes() -&gt; [{{Map, Path}, Position},…] for all indexes</li>
+</ul>
+<p>###Bridge Functions (jc_bridge)</p>
+<ul>
+<li>
+<p>All functions from the jc, jc_s, jc_eviction_manager, jc_psub
+and jc_store are supported and are of the form:</p>
+<p><code>{From, {Fn, P1, P2,...}}</code></p>
+<p>as in</p>
+<p><code>jc_bridge ! {Pid, {put, Map, Key, Value}}</code></p>
+</li>
+<li>
+<p>Additionally,</p>
+<p>{From, {node_topic_sub}} -&gt; ok | {error, badarg},
+client will recieve:</p>
+<p><code>{jc_node_events, {nodedown, DownedNode, [ActiveNodes],[ConfiguredNodes]}}</code></p>
+<p>or</p>
+<p><code>{jc_node_events, {nodeup, UppedNode, [ActiveNodes],[ConfiguredNodes]}}</code></p>
+<p>{From, {node_topic_unsub}} -&gt; ok.</p>
+</li>
+</ul>
+<p>###Application Modules</p>
+<ul>
+<li>jc_cluster
+<ul>
+<li>Simple, mnesia-based, cluster creation and management</li>
+</ul>
+</li>
+<li>jc, jc_s, jc_store, jc_eviction_manager
+<ul>
+<li>Caching operations, Key-specific and Map-level TTLs</li>
+</ul>
+</li>
+<li>jc_sequence
+<ul>
+<li>Singleton service enforcing strictly monotonic sequence
+numbers on jc_s operations</li>
+</ul>
+</li>
+<li>jc_analyzer
+<ul>
+<li>Analysis and indexing inititation of JSON query strings</li>
+</ul>
+</li>
+<li>jc_psub:
+<ul>
+<li>Pub / Sub of cache write and delete events</li>
+<li>On-demand, ad-hoc topic events</li>
+<li>Predefined jc_node_events topic for node-up and node-down
+notifications</li>
+</ul>
+</li>
+<li>jc_bridge
+<ul>
+<li>Server that acts as a proxy between an external process and
+j_cache functionality</li>
+</ul>
+</li>
+</ul>
+<p>###Configuration</p>
+<ul>
+<li>Application configuration is in sys.config which is heavily
+commented</li>
+<li>Cookie, node-name and auto-restart of VM controlled by vm.args</li>
+</ul>
+<p>###Build Instructions</p>
+<ul>
+<li>Ensure that Erlang 17 or higher is installed</li>
+<li>Get the Source Code from Stash</li>
+</ul>
+<pre><code>  [root@db01] git clone http://jrosenblum@cleng01.statcom.local:7990/stash/scm/plym/j-cache.git
+  [root@db01] cd j_cache
+</code></pre>
+<ul>
+<li>
+<p>For an environment which does NOT use NIF jsonx nor native compile (i.e., windows)</p>
+<pre><code>[root@db01] ./rebar get-deps clean compile -C rebar_windows.config
+</code></pre>
+</li>
+<li>
+<p>For an environment which uses the NIF jsonx and native compilation</p>
+<pre><code>[root@db01] ./rebar get-deps clean compile
+</code></pre>
+</li>
+<li></li>
+<li>
+<p>Edit rel/file/sys.config and vm.args</p>
+<ul>
+<li>
+<p>vm.args: Indicate the correct node names and cookie in vm.args</p>
+</li>
+<li>
+<p>vm.args: FOR WINDOWS, comment out the node name line</p>
+<pre><code>  # -name jcache@127.0.0.1.
+</code></pre>
+</li>
+<li>
+<p>sys.config: Adjust prarameters as neccesary.</p>
+</li>
+<li>
+<p>sys.config: FOR WINDOWS, comment out console-logging</p>
+<pre><code>  %{lager_console_backend, info},
+</code></pre>
+</li>
+</ul>
+</li>
+<li>
+<p>Generate the Release Node, it will be located in j_cache/rel/jc</p>
+<pre><code>  [root@db01] ./rebar generate
+  chmod a+x rel/jc/bin/jc
+</code></pre>
+<p>or, for WINDOWS,</p>
+<pre><code> [root@db01] ./rebar generate -C rebar_windows.config
+</code></pre>
+</li>
+<li>
+<p>Run the release</p>
+<pre><code>[root@db01] ./bin/jc console or [root@dbo1] ./bin/jc attach
+</code></pre>
+</li>
+</ul>
+<p>###Documentation</p>
+<ol>
+<li>
+<pre><code> [root@dbo1] cd j_cache
+
+ [root@dbo1] ./rebar doc skip_deps=true
+</code></pre>
+</li>
+</ol>
+<p>###Test
+[root@dbo1] cd j_cache
+[root@dbo1] ./rebar ct</p>
+<p>###Performance</p>
+<p>Performance charts can be found in the test/benchmark directory. Tests were done:</p>
+<ul>
+<li>Using MacBook Pro, 2.5 GHz Intel Core i7, 16 GB 1600 Mhz DDR3</li>
+<li>1 to 4 Nodes running j_cache,</li>
+<li>basho_benchmark running on additional node utilizing jc_bridge</li>
+<li>10 concurrent processes randomaly assigned a j_cache node</li>
+<li>gets, puts, and evicts at a 5:3:2 ratio.</li>
+<li>100 Kilobyte-sized, binary values</li>
+</ul>
+
