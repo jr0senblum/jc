@@ -206,7 +206,7 @@ commented
 
  `[root@db01] ./rebar3 prod release`
 
-* Edit the sys.config and vm.args files  in _build/prod/rel/jc/releases/<version>
+* Edit the sys.config and vm.args files in _build/prod/rel/jc/releases/<version>
    * vm.args: Indicate the correct node names and cookie in vm.args
    * sys.config: Adjust prarameters as neccesary.
    		
