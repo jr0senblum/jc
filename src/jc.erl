@@ -513,7 +513,7 @@ split(Criteria)->
     {SLValue, STest}.
 
 
-%% jsonx NIF doesnt compile on windows so use erlang library
+%% jsonx NIF doesnt compile on windows so use erlang jsone library
 
 -ifdef('NO_NIF').
 -define(JSON_DECODE(X), jsone:decode(X)).

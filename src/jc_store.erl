@@ -344,6 +344,8 @@ try_index_match(Map, Path, Test, Fun)->
 
 
 
+%% jsonx NIF doesnt compile on windows so use erlang jsone library
+
 -ifdef('ANALYZE').
 -define(UPDATE_STATS, _Pid = jc_analyzer:update_statistic(Map, Path)).
 -else.

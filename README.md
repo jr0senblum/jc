@@ -14,7 +14,7 @@ JC
   * TTL is time-to-live in seconds
 * Consistency through Serialization: An alternative API allows
     for a sequence-number parameter on the put/x, evict/x, match/x 
-    and remove/x opperations. Operations whose sequence number is
+    and remove/x operations. Operations whose sequence number is
     lower than the current (per map) max are disallowed thereby
     ensuring, for example, that stale puts do not overwrite 
     "fresh" ones
@@ -181,7 +181,7 @@ JC
    notifications
 * jc_bridge
   * Server that acts as a proxy between an external process and
-  j_cache functionality
+  jc functionality
 
 
 
@@ -197,66 +197,25 @@ commented
 * Get the Source Code from Stash
 
 
-      [root@db01] git clone http://jrosenblum@cleng01.statcom.local:7990/stash/scm/plym/j-cache.git
-      [root@db01] cd j_cache`
+      [root@db01] git clone https://github.com/jr0senblum/jc.git
+      [root@db01] cd jc
+      [root@db01] ./rebar3 release
 
-* For an environment which does NOT use NIF jsonx nor native compile (i.e., windows)
+      or
 
-      [root@db01] ./rebar get-deps clean compile -C rebar_windows.config
+      [root@db01] ./rebar3 prod release
 
-
-* For an environment which uses the NIF jsonx and native compilation
-  
-      [root@db01] ./rebar get-deps clean compile
     
-* 
-* Edit rel/file/sys.config and vm.args
+* Edit the sys.config and vm.args files  in _build/prod/rel/jc/releases/<version>
    * vm.args: Indicate the correct node names and cookie in vm.args
-   * vm.args: FOR WINDOWS, comment out the node name line
-
-           # -name jcache@127.0.0.1.
    * sys.config: Adjust prarameters as neccesary.
-   * sys.config: FOR WINDOWS, comment out console-logging
-   
-           %{lager_console_backend, info},
    		
    	  
-* Generate the Release Node, it will be located in j_cache/rel/jc
-
-		[root@db01] ./rebar generate
-        chmod a+x rel/jc/bin/jc
-   
-   or, for WINDOWS, 
-   
-       [root@db01] ./rebar generate -C rebar_windows.config
-
-
-* Run the release
-
-      [root@db01] ./bin/jc console` or `[root@dbo1] ./bin/jc attach
-
-
 
 ###Documentation
 1.
-        [root@dbo1] cd j_cache
+        [root@dbo1] cd jc
     
-        [root@dbo1] ./rebar doc skip_deps=true`
+        [root@dbo1] ./rebar3 edoc
 
 
-###Test
-        [root@dbo1] cd j_cache
-        [root@dbo1] ./rebar ct
-
-
-
-###Performance
-
-Performance charts can be found in the test/benchmark directory. Tests were done:
-
-*  Using MacBook Pro, 2.5 GHz Intel Core i7, 16 GB 1600 Mhz DDR3
-*  1 to 4 Nodes running j_cache,
-*  basho_benchmark running on additional node utilizing jc_bridge 
-*  10 concurrent processes randomaly assigned a j_cache node
-*  gets, puts, and evicts at a 5:3:2 ratio.
-*  100 Kilobyte-sized, binary values
