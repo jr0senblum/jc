@@ -332,7 +332,8 @@ fun_match(Map, Path, Test, Fun) ->
 try_index_match(Map, Path, Test, Fun)->
     case index_get(Map, Path, Test) of
 	undefined ->
-	    lager:debug("~p: no index values found for ~p", [?MODULE, {Map, Path}]),
+	    lager:debug("~p: no index values found for ~p", 
+			[?MODULE, {Map, Path}]),
 	    undefined;
 	Recs ->
 	    lager:debug("~p: using index for ~p", [?MODULE, {Map, Path}]),
@@ -344,26 +345,21 @@ try_index_match(Map, Path, Test, Fun)->
 
 
 
-%% jsonx NIF doesnt compile on windows so use erlang jsone library
-
--ifdef('ANALYZE').
--define(UPDATE_STATS, _Pid = jc_analyzer:update_statistic(Map, Path)).
--else.
--define(UPDATE_STATS, ok).
- -endif.
-
-
 % ------------------------------------------------------------------------------
 % Do an index read based on the index-ed field indiated by the to_index record
 % for the given Map and Json Path. If using the analyzer, update the statistics.
 %
 index_get(Map, Path, Test) -> 
-    ?UPDATE_STATS,
+    update_stats(Map, Path),
     case mnesia:read(to_index, {Map, Path}) of
 	[] -> undefined;
 	[#to_index{position = Pos}] ->
 	    mnesia:index_read(key_to_value, {Map, Test}, Pos)
     end.
+
+
+update_stats(Map, Path) ->
+    jc_analyzer:update_statistic(Map, Path).
 
 
 % ------------------------------------------------------------------------------
@@ -394,13 +390,15 @@ map_match(Map, Path, Test, Fun) ->
     lists:foldl(F, [], Recs).
 
 
+%% jsonx NIF doesnt compile on windows so use erlang jsone library
+
 -ifdef('NO_NIF').
 -define(JSON_DECODE(X), jsone:decode(X)).
 -else.
 -define(JSON_DECODE(X), jsonx:decode(X)).
 -endif.
 
-% decode the JSON using jsone.
+% decode the JSON using appropriate libary.
 decode(Value) ->
     try
 	V = case is_binary(Value) of
