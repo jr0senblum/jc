@@ -197,6 +197,7 @@ commented
 * Get the Source Code from Stash
 
  `[root@db01] git clone https://github.com/jr0senblum/jc.git`
+
  `[root@db01] cd jc` 
 
  `[root@db01] ./rebar3 release`
