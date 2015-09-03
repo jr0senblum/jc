@@ -24,7 +24,7 @@ JC
        keys whose values match a java-style, dot-path, string:
        "id.type=3"
     * Ad-hoc, Index Support: In order to support faster
-      operations, (2-3 orders of magnitude), each map can have up to 4,
+      operations, (2-3 orders of magnitude), each map can have up to four,
        dot-path, strings configured for which jc will create index
        support.
     * Auto Index Recognition - Ability to detect frequently used JSON querries
@@ -196,16 +196,15 @@ commented
 * Ensure that Erlang 17 or higher is installed
 * Get the Source Code from Stash
 
+ `[root@db01] git clone https://github.com/jr0senblum/jc.git`
+ `[root@db01] cd jc` 
 
-      [root@db01] git clone https://github.com/jr0senblum/jc.git
-      [root@db01] cd jc
-      [root@db01] ./rebar3 release
+ `[root@db01] ./rebar3 release`
 
-      or
+ or
 
-      [root@db01] ./rebar3 prod release
+ `[root@db01] ./rebar3 prod release`
 
-    
 * Edit the sys.config and vm.args files  in _build/prod/rel/jc/releases/<version>
    * vm.args: Indicate the correct node names and cookie in vm.args
    * sys.config: Adjust prarameters as neccesary.
@@ -213,9 +212,9 @@ commented
    	  
 
 ###Documentation
-1.
-        [root@dbo1] cd jc
-    
-        [root@dbo1] ./rebar3 edoc
+
+   `[root@dbo1] cd jc`
+
+   `[root@dbo1] ./rebar3 edoc`
 
 
