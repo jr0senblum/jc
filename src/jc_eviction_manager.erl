@@ -109,17 +109,17 @@ cancel_timer(RecRef) ->
 %% will remove the max_ttl for the map alltogether. Existing values are 
 %% overwritten.
 %%
--spec set_max_ttl(Map::map_name(), Secs::seconds()) -> {ok} | {error, badarg}.
+-spec set_max_ttl(Map::map_name(), Secs::seconds()) -> ok | {error, badarg}.
 
 set_max_ttl(Map, ?INFINITY) ->
     lager:debug("~p: removing max ttl from map ~p.", [?MODULE, Map]),
     mnesia:dirty_delete({max_ttl, Map}),
-    {ok};
+    ok;
 
 set_max_ttl(Map, Secs) when is_integer(Secs) andalso Secs > 0->
     lager:debug("~p: updating max ttl for map ~p to ~p.", [?MODULE, Map, Secs]),
     mnesia:dirty_write(#max_ttl{map = Map, ttl_secs = Secs}),
-    {ok};
+    ok;
 
 set_max_ttl(_Map, Bad) ->
     lager:warning("~p: bad value sent to set_max_ttl: ~p.", [?MODULE, Bad]),

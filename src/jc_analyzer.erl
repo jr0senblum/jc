@@ -242,7 +242,7 @@ update_stat(Map, Path, #jc_analyzer_state{limit=Limit, window_sec=Window}) ->
 initiate_index(#auto_index{count = C, times = T} = R, NowSecs, Map, Path) ->
     {Success, Msg} = 
 	case jc_store:create_index(Map, Path) of
-	    {ok} ->
+	    ok ->
 		lager:debug("~p: initiating index on ~p.", 
 			    [?SERVER, {Map, Path}]),
 		{true, none};

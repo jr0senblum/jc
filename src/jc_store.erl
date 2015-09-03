@@ -133,7 +133,7 @@ clear(Map) ->
     F = fun() ->
 		Items = mnesia:index_read(key_to_value, Map, #key_to_value.map),
 		[mnesia:delete_object(Rec) || Rec <- Items],
-		mnesia:delete({seq,Map})
+		mnesia:delete({seq, Map})
 	end,
      mnesia:sync_dirty(F),
     ok.
@@ -436,7 +436,7 @@ decode(Value) ->
 %% start_indexing(bed, "menu.id"}).
 %%
 -spec start_indexing(map_name(), Path::string() | binary()) -> 
-			    {ok} | {error, no_indexes_available | any()}.
+			    ok | {error, no_indexes_available | any()}.
 
 start_indexing(Map, Path) ->
     case make_ej_path(Path) of
@@ -455,7 +455,7 @@ start_indexing(Map, Path) ->
 %% function takes tuples as opposed to a string, dot-path specificationfor the
 %% search criteria.
 %%
--spec create_index(map(), tuple()) -> {ok} | {error, term()}.
+-spec create_index(map(), tuple()) -> ok | {error, term()}.
 
 create_index(Map, BPath) ->
     F = fun() ->
@@ -484,7 +484,7 @@ create_index(Map, BPath) ->
             % didn't want the overhead of an indexed column unless
             % we are going to use it.
 	    mnesia:add_table_index(key_to_value, ?FIELD_NAME(Pos)),
-	    {ok};
+	    ok;
 
 	{aborted, Reason} ->
 	    lager:info("~p: could not start indexing ~p: ~p.", 
@@ -515,7 +515,7 @@ next_custom_field(Map) ->
 %% tuples: {"menu", "id"}, for example. If no one is using a custom field, 
 %% stop indexing it.
 %%
--spec stop_indexing(map_name(), Path::string() | binary()) -> {ok}.
+-spec stop_indexing(map_name(), Path::string() | binary()) -> ok.
 
 stop_indexing(Map, Path) ->
     case make_ej_path(Path) of
@@ -527,7 +527,7 @@ stop_indexing(Map, Path) ->
 		       [?MODULE, {Map, BPath}]),
 	    mnesia:transaction(fun() -> mnesia:delete({to_index, {Map, BPath}}) end),
 	    remove_unused_index(),
-	    {ok}
+	    ok
     end.
 
 % if no to_index row refers to a column, stop indexing that column.
