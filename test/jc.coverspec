@@ -1,0 +1,46 @@
+      %% List of Nodes on which cover will be active during test.
+      %% Nodes = [atom()]
+%      {nodes, ['one@127.0.0.1','two@127.0.0.1']}.       
+
+      %% Files with previously exported cover data to include in analysis.
+      %% CoverDataFiles = [string()]
+      %%{import, CoverDataFiles}.
+
+      %% Cover data file to export from this session.
+      %% CoverDataFile = string()
+      %%{export, CoverDataFile}.
+
+      %% Cover analysis level.
+      %% Level = details | overview
+      {level, details}.       
+
+      %% Directories to include in cover.
+      %% Dirs = [string()]
+%      {incl_dirs, ["./src"]}.
+
+      %% Directories, including subdirectories, to include.
+      %%{incl_dirs_r, Dirs}.
+
+      %% Specific modules to include in cover.
+      %% Mods = [atom()]
+      {incl_mods, [jc,
+      		  jc_analyzer,
+      		  jc_s,
+      		  jc_app,
+		  jc_bridge,
+		  jc_cluster,
+		  jc_eviction_manager,
+		  jc_psub,
+		  jc_sequence,
+		  jc_store,
+		  jc_sup		  
+		  ]}.
+
+      %% Directories to exclude in cover.
+      %%{excl_dirs, Dirs}.
+
+      %% Directories, including subdirectories, to exclude.
+      %%{excl_dirs_r, Dirs}.
+
+      %% Specific modules to exclude in cover.
+      %%{excl_mods, Mods}.
