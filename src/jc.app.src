@@ -1,6 +1,6 @@
 {application, 'jc',
  [{description, "A simple, distributed, in-memory caching system"},
-  {vsn, "git"},
+  {vsn, "v.0.9.0"},
   {registered, [
 		jc,
 		jc_app,

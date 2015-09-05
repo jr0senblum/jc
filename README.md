@@ -1,7 +1,7 @@
 JC
 ====
 
-##Erlang, Distributable, In-Memory Cache with Pub/Sub,  Serialization and JSON-Query Support.
+##Erlang, Distributable, In-Memory Cache with Pub/Sub,  Serialization Assist and JSON-Query Support.
 
 
 ###Features
@@ -12,27 +12,28 @@ JC
   * {Map, Key} must be unique	
   * Maps, Keys and Values can be any Erlang term
   * TTL is time-to-live in seconds
-* Consistency through Serialization: An alternative API allows
-    for a sequence-number parameter on the put/x, evict/x, match/x 
-    and remove/x operations. Operations whose sequence number is
-    lower than the current (per map) max are disallowed thereby
-    ensuring, for example, that stale puts do not overwrite 
-    "fresh" ones
+* Consistency Assist through Serialization: An alternative API
+    allows for a sequence-number parameter on the put/x, evict/x,
+    match/x and remove/x operations. Operations whose sequence
+    number is lower than the current, per-map max are disallowed 
+    thereby ensuring, for example, that stale puts do not 
+    overwrite "fresh" ones because the "fresh" one beat the stale
+    one to jc.
  *  JSON Query Support
      * Query by JSON: When Values are JSON, evict_match/2,
        evict_all_match/1 and values_match/2 can search or evict
-       keys whose values match a java-style, dot-path, string:
-       "id.type=3"
+       keys whose values match a java-style, dot-path, string 
+       (i.e., "id.type=3")
     * Ad-hoc, Index Support: In order to support faster
       operations, (2-3 orders of magnitude), each map can have up to four,
-       dot-path, strings configured for which jc will create index
-       support.
-    * Auto Index Recognition - Ability to detect frequently used JSON querries
-      and automatically start indexing on them.
+       dot-path, strings configured for which jc will provide 
+       index support.
+    * Auto Index Recognition - Ability to detect frequently used
+      JSON querries and automatically start indexing on them.
 * User Controlled Eviction
   * Map-level TTL: A job runs at configured intervals and removes
   items whose create-date is older than a map-specific, configured 
-  number of seconds
+  number of seconds.
   * Item-level TTL: PUTS can include a TTL which defines when the
   item should be evicted. Used for shorter TTLs, as an exception
   to a Map-level TTL, or when more precision is required than 
@@ -146,7 +147,7 @@ JC
  
    `{From, {Fn, P1, P2,...}}`
    
-    as in 
+    for each paramater, as in 
     
     `jc_bridge ! {Pid, {put, Map, Key, Value}}`
     
@@ -177,18 +178,17 @@ JC
 * jc_psub: 
   * Pub / Sub of cache write and delete events
   * On-demand, ad-hoc topic events
-  * Predefined jc_node_events topic for node-up and node-down
-   notifications
+  * Predefined, *jc_node_events* topic provides subscribers
+  node-up and node-down notifications
 * jc_bridge
   * Server that acts as a proxy between an external process and
   jc functionality
 
 
 
-
 ###Configuration
 * Application configuration is in sys.config which is heavily
-commented
+  commented
 * Cookie, node-name and auto-restart of VM controlled by vm.args
 
 
@@ -196,26 +196,23 @@ commented
 * Ensure that Erlang 17 or higher is installed
 * Get the Source Code from Stash
 
- `[root@db01] git clone https://github.com/jr0senblum/jc.git`
+   `[root@db01] git clone https://github.com/jr0senblum/jc.git`
 
- `[root@db01] cd jc` 
-
- `[root@db01] ./rebar3 release`
-
- or
-
- `[root@db01] ./rebar3 prod release`
-
-* Edit the sys.config and vm.args files in _build/prod/rel/jc/releases/<version>
-   * vm.args: Indicate the correct node names and cookie in vm.args
+ * Edit the sys.config and vm.args files in ./config
+    * vm.args: Indicate the correct node names and cookie in
+      vm.args
    * sys.config: Adjust prarameters as neccesary.
-   		
-   	  
+
+     `[root@db01] ./rebar3 release`
+    
+     or
+
+     `[root@db01] ./rebar3 prod release`
+
+
+   	
 
 ###Documentation
 
-   `[root@dbo1] cd jc`
-
    `[root@dbo1] ./rebar3 edoc`
-
 

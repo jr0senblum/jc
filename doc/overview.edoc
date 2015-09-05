@@ -4,7 +4,7 @@ JC
 
 @author Jim Rosenblum <jrosenblum@carelogistics.com>
 @copyright 2013-2015 Jim Rosenblum
-@version 1.2.0.22
+@version v0.9.0
 @title Welcome to JCache
 
 @doc 
@@ -22,32 +22,32 @@ in other caching systems</li>
 <li>TTL is time-to-live in seconds</li>
 </ul>
 </li>
-<li>Consistency through Serialization: An alternative API allows
-for a sequence-number parameter on the put/x, evict/x, match/x
-and remove/x operations. Operations whose sequence number is
-lower than the current (per map) max are disallowed thereby
-ensuring, for example, that stale puts do not overwrite
-“fresh” ones</li>
+<li>Consistency Assist through Serialization: An alternative API
+allows for a sequence-number parameter on the put/x, evict/x,
+match/x and remove/x operations. Operations whose sequence
+number is lower than the current, per-map max are disallowed
+thereby ensuring, for example, that stale puts do not
+overwrite “fresh” ones because the “fresh” one beat the stale
+one to jc.</li>
 <li>JSON Query Support
 <ul>
 <li>Query by JSON: When Values are JSON, evict_match/2,
 evict_all_match/1 and values_match/2 can search or evict
-keys whose values match a java-style, dot-path, string:
-“id.type=3”</li>
+keys whose values match a java-style, dot-path, string
+(i.e., “id.type=3”)</li>
 <li>Ad-hoc, Index Support: In order to support faster
-operations, (2-3 orders of magnitude), each map can have
-  up to 4, dot-path, strings configured for which jc
-  will create index support.</li>
-<li>Auto Index Recognition - Ability to detect frequently used JSON
-  querries and automatically start indexing on them.
-</li>
+operations, (2-3 orders of magnitude), each map can have up to four,
+dot-path, strings configured for which jc will provide
+index support.</li>
+<li>Auto Index Recognition - Ability to detect frequently used
+JSON querries and automatically start indexing on them.</li>
 </ul>
 </li>
 <li>User Controlled Eviction
 <ul>
 <li>Map-level TTL: A job runs at configured intervals and removes
 items whose create-date is older than a map-specific, configured
-number of seconds</li>
+number of seconds.</li>
 <li>Item-level TTL: PUTS can include a TTL which defines when the
 item should be evicted. Used for shorter TTLs, as an exception
 to a Map-level TTL, or when more precision is required than
@@ -193,7 +193,7 @@ of given Map</li>
 <p>All functions from the jc, jc_s, jc_eviction_manager, jc_psub
 and jc_store are supported and are of the form:</p>
 <p><code>{From, {Fn, P1, P2,...}}</code></p>
-<p>as in</p>
+<p>for each paramater, as in</p>
 <p><code>jc_bridge ! {Pid, {put, Map, Key, Value}}</code></p>
 </li>
 <li>
@@ -233,8 +233,8 @@ numbers on jc_s operations</li>
 <ul>
 <li>Pub / Sub of cache write and delete events</li>
 <li>On-demand, ad-hoc topic events</li>
-<li>Predefined jc_node_events topic for node-up and node-down
-notifications</li>
+<li>Predefined, <em>jc_node_events</em> topic provides subscribers
+node-up and node-down notifications</li>
 </ul>
 </li>
 <li>jc_bridge
@@ -244,3 +244,36 @@ jc functionality</li>
 </ul>
 </li>
 </ul>
+<p>###Configuration</p>
+<ul>
+<li>Application configuration is in sys.config which is heavily
+commented</li>
+<li>Cookie, node-name and auto-restart of VM controlled by vm.args</li>
+</ul>
+<p>###Build Instructions</p>
+<ul>
+<li>
+<p>Ensure that Erlang 17 or higher is installed</p>
+</li>
+<li>
+<p>Get the Source Code from Stash</p>
+<p><code>[root@db01] git clone https://github.com/jr0senblum/jc.git</code></p>
+</li>
+<li>
+<p>Edit the sys.config and vm.args files in ./config</p>
+<ul>
+<li>
+<p>vm.args: Indicate the correct node names and cookie in
+vm.args</p>
+</li>
+<li>
+<p>sys.config: Adjust prarameters as neccesary.</p>
+<p><code>[root@db01] ./rebar3 release</code></p>
+<p>or</p>
+<p><code>[root@db01] ./rebar3 prod release</code></p>
+</li>
+</ul>
+</li>
+</ul>
+<p>###Documentation</p>
+<p><code>[root@dbo1] ./rebar3 edoc</code></p>
