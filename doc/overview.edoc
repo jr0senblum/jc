@@ -70,38 +70,40 @@ interoperate with CLOJURE and Java clients</li>
 </ul>
 <p>###Cache Functions (jc)</p>
 <ul>
-<li>PUT
+<li>Create
 <ul>
-<li>put(Map, Key, Value) -&gt; {ok, {key, Key}} | {error, Term}</li>
-<li>put(Map, Key, Value, TTLSescs) -&gt; {ok, {key, Key}} |
-{error, Term}</li>
-<li>put_all(Map, [{K,V},{K,V},…]) -&gt; {ok, No_Successful_Puts}</li>
-<li>put_all(Map, [{K,V},{K,V},…], TTLSecs) -&gt; {ok, No_Successful_Puts}</li>
+<li>put(Map, Key, Value, [TTLSecs]) -&gt; {ok, {key, Key}} | {error, badarg}</li>
+<li>put_all(Map, [{K,V},{K,V},…], [TTLSecs]) -&gt; {ok, CntSuccessfulPuts}|{error, badarg}</li>
 </ul>
 </li>
-<li>DELETE
+<li>Delete
+<ul>
+<li>evict(Map, Key) -&gt; ok</li>
+<li>evict_all_match(Criteria = “Json.Path.Match=Value”) -&gt; ok</li>
+<li>evict_map_since(Map, Age_In_Secs) -&gt; ok</li>
+<li>evict_match(Map, Criteria = “Json.Path.Match=Value”) -&gt; ok</li>
+<li>remove_items(Map, Keys) -&gt; {ok, [{K, V}, …]} for each {K, V} deleted.</li>
+</ul>
+</li>
+<li>Retrieve
+<ul>
+<li>get(Map, Key) -&gt; {ok, Value} | miss</li>
+<li>get_all(Map, [K1, K2, …]) -&gt; {ok, {Found=[{K1,V1},…], Misses=[K2,…]}}</li>
+<li>key_set(Map) -&gt; {ok, [K1, K2, …]} for each Key in the Map</li>
+<li>values(Map) -&gt; {ok, [V1, V2, …]} for each Value in the Map</li>
+<li>values_match(Map, Criteria=“JSon.Path.Match=Value”) -&gt; {ok, [{K1,V1}, {K2,V2}, …]}</li>
+</ul>
+</li>
+<li>Flush
 <ul>
 <li>clear(Map) -&gt; ok</li>
-<li>delete_map_since(Map, Age_In_Secs) -&gt; ok.</li>
-<li>evict(Map, Key) -&gt; ok</li>
-<li>evict_match(Map, Criteria = “Json.Path.Match=Value”) -&gt; ok</li>
-<li>evict_all_match(Criteria = “Json.Path.Match=Value”) -&gt; ok</li>
 <li>flush() -&gt; ok</li>
-<li>flush(silent) -&gt; ok &lt;-- Don’t send alerts to subscribers</li>
-<li>remove_items(Map, Keys) -&gt; {ok, [{K, V}, …]} for each Key
-removed.</li>
+<li>flush(silent) -&gt; ok &lt;-- Does not send alerts to subscribers</li>
 </ul>
 </li>
-<li>GET
+<li>Predicates
 <ul>
 <li>contains_key(Map, Key) -&gt; true | false.</li>
-<li>get(Map, Key) -&gt; {ok, Value} | miss</li>
-<li>get_all(Map, [K1, K2, …]) -&gt; {ok, {Found=[{K1,V1},…],
-Misses=[K2,…]}}</li>
-<li>key_set(Map) -&gt; {ok, [K1, K2, …]}</li>
-<li>values(Map) -&gt; {ok, [V1, V2, …]}</li>
-<li>values_match(Map, Criteria=“JSon.Path.Match=Value”) -&gt;
-{ok, [{K1,V1}, {K2,V2}, …]}</li>
 </ul>
 </li>
 <li>Meta
@@ -116,32 +118,23 @@ Misses=[K2,…]}}</li>
 </ul>
 </li>
 </ul>
-<h3><a id="Searializable_Cache_Functions_jc_s_89"></a>Searializable Cache Functions (jc_s)</h3>
+<h3><a id="Searializable_Cache_Functions_jc_s_85"></a>Searializable Cache Functions (jc_s)</h3>
+<p>Identical to the standard, CRUD functions above, except that</p>
 <ul>
-<li>trx_ret() :: {error, badarg | out_of_seq | term}</li>
-<li>Put
+<li>Additional sequence parameter which is expected to be a monotonically
+increcing integer which is used to disalow “out of sequence” operations</li>
+<li>Functions return {error, out_of_seq} if one attemts an out of sequence
+operation
 <ul>
-<li>put(Map, Key, Value, Seq) -&gt; {ok, {key, Key}} | trx_ret</li>
-<li>put(Map, Key, Value, TTLSecs, Seq) -&gt; {ok, {key, Key}} |
-trx_ret</li>
-<li>put_all(Map, [{K,V},{K,V},…], Seq) -&gt; {ok,
-No_Successful_Puts} | trx_ret</li>
-<li>put_all(Map, [{K,V},{K,V},…], TTLSecs, Seq) -&gt; {ok,
-Num_Successful_Puts} | trx_ret</li>
+<li>evict(Map, Key, Seq)</li>
+<li>evict_all_match(Criteria = “Json.Path.Match=Value”, Seq)</li>
+<li>evict_match(Map, Criteria = “Json.Path.Match=Value”, Seq)</li>
+<li>put(Map, Key, Value, [TTLSecs], Seq)</li>
+<li>put_all(Map, [{K,V},{K,V},…], [TTLSecs], Seq)</li>
+<li>remove_items(Map, Keys, Seq)</li>
 </ul>
 </li>
-<li>Delete
-<ul>
-<li>evict(Map, Key, Seq) -&gt; ok | trx_ret</li>
-<li>evict_match(Map, Criteria = “Json.Path.Match=Value”, Seq) -&gt;
-ok | trx_ret</li>
-<li>evict_all_match(Criteria = “Json.Path.Match=Value”, Seq) -&gt;
-ok | trx_ret</li>
-<li>remove_items(Map, Keys, Seq) -&gt; {ok, [{K, V}, …]} | |
-trx_ret</li>
-</ul>
-</li>
-<li>Meta
+<li>Meta Functions
 <ul>
 <li>sequence() -&gt; {ok, [{Map, Highest_Number},… ]}</li>
 <li>sequence(Map) -&gt; {ok, Hightest_Number} | {ok, not_exist}</li>
@@ -277,3 +270,4 @@ vm.args</p>
 </ul>
 <p>###Documentation</p>
 <p><code>[root@dbo1] ./rebar3 edoc</code></p>
+

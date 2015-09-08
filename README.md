@@ -1,7 +1,8 @@
 JC
 ====
 
-##Erlang, Distributable, In-Memory Cache with Pub/Sub,  Serialization Assist and JSON-Query Support.
+##Erlang, Distributable, In-Memory Cache with Pub/Sub,  Serialization Assist and
+JSON-Query Support.
 
 
 ###Features
@@ -52,31 +53,29 @@ JC
 
 
 ###Cache Functions (jc)
-* PUT
-  * put(Map, Key, Value) -> {ok, {key, Key}} | {error, Term}
-  * put(Map, Key, Value, TTLSescs) -> {ok, {key, Key}} | 
-                                      {error, Term}
-  * put_all(Map, [{K,V},{K,V},...]) -> {ok, No_Successful_Puts}
-  * put_all(Map, [{K,V},{K,V},...], TTLSecs) -> {ok, No_Successful_Puts}
-* DELETE
-  * clear(Map) -> ok
-  * delete_map_since(Map, Age_In_Secs) -> ok.
+* Create
+  * put(Map, Key, Value, [TTLSecs]) -> {ok, {key, Key}} | {error, badarg}
+  * put_all(Map, [{K,V},{K,V},...], [TTLSecs]) -> {ok, CntSuccessfulPuts} |
+                                                  {error, badarg}
+* Delete
   * evict(Map, Key) -> ok
-  * evict_match(Map, Criteria = "Json.Path.Match=Value") -> ok
   * evict_all_match(Criteria = "Json.Path.Match=Value") -> ok
-  * flush() -> ok
-  * flush(silent) -> ok <-- Don't send alerts to subscribers
-  * remove_items(Map, Keys) -> {ok, [{K, V}, ...]} for each Key
-  removed.
-* GET
-  * contains_key(Map, Key) -> true | false.
+  * evict_map_since(Map, Age_In_Secs) -> ok
+  * evict_match(Map, Criteria = "Json.Path.Match=Value") -> ok
+  * remove_items(Map, Keys) -> {ok, [{K, V}, ...]} for each {K, V} deleted.
+* Retrieve
   * get(Map, Key) -> {ok, Value} | miss
-  * get_all(Map, [K1, K2, ...]) -> {ok, {Found=[{K1,V1},...],
-                                         Misses=[K2,...]}}
-  * key_set(Map) -> {ok, [K1, K2, ...]}
-  * values(Map) -> {ok, [V1, V2, ...]}
+  * get_all(Map, [K1, K2, ...]) -> {ok, {Found=[{K1,V1},...], Misses=[K2,...]}}
+  * key_set(Map) -> {ok, [K1, K2, ...]} for each Key in the Map
+  * values(Map) -> {ok, [V1, V2, ...]} for each Value in the Map
   * values_match(Map, Criteria="JSon.Path.Match=Value") ->
-                                     {ok, [{K1,V1}, {K2,V2}, ...]}
+                                                  {ok, [{K1,V1}, {K2,V2}, ...]}
+* Flush
+  * clear(Map) -> ok
+  * flush() -> ok
+  * flush(silent) -> ok <-- Does not send alerts to subscribers
+* Predicates
+  * contains_key(Map, Key) -> true | false.
 * Meta
   * cache_nodes() -> {nodes, {active, [Node1,... ]}, 
                              {configured, [Node1,... ]}}
@@ -88,24 +87,18 @@ JC
 
 
 ### Searializable Cache Functions (jc_s)
-* trx_ret() :: {error, badarg | out_of_seq | term}
-* Put
-  * put(Map, Key, Value, Seq) -> {ok, {key, Key}} | trx_ret
-  * put(Map, Key, Value, TTLSecs, Seq) -> {ok, {key, Key}} |
-                                          trx_ret
-  * put_all(Map, [{K,V},{K,V},...], Seq) -> {ok,
-   No_Successful_Puts} | trx_ret
-  * put_all(Map, [{K,V},{K,V},...], TTLSecs, Seq) -> {ok,
-   Num_Successful_Puts} | trx_ret
-* Delete
-  * evict(Map, Key, Seq) -> ok | trx_ret
-  * evict_match(Map, Criteria = "Json.Path.Match=Value", Seq) ->
-   ok | trx_ret
-  * evict_all_match(Criteria = "Json.Path.Match=Value", Seq) ->
-   ok | trx_ret
-  * remove_items(Map, Keys, Seq) -> {ok, [{K, V}, ...]} | | 
-                                   trx_ret
-* Meta
+Identical to the standard, CRUD functions above, except that
+* Additional sequence parameter which is expected to be a monotonically
+  increcing integer which is used to disalow "out of sequence" operations
+* Functions return {error, out_of_seq} if one attemts an out of sequence 
+  operation
+  * evict(Map, Key, Seq)
+  * evict_all_match(Criteria = "Json.Path.Match=Value", Seq) 
+  * evict_match(Map, Criteria = "Json.Path.Match=Value", Seq)
+  * put(Map, Key, Value, [TTLSecs], Seq) 
+  * put_all(Map, [{K,V},{K,V},...], [TTLSecs], Seq)
+  * remove_items(Map, Keys, Seq)
+* Meta Functions
   * sequence() -> {ok, [{Map, Highest_Number},... ]}
   * sequence(Map) -> {ok, Hightest_Number} | {ok, not_exist}
 
@@ -133,7 +126,7 @@ JC
 
 ###Indexing Functions (jc_store)
   * start_indexing(Map, Path={bed,"menu.id"}) -> ok |
-                                  {error, no_indexes_available} |
+                                               {error, no_indexes_available} |
 							       {error, Term}
   * stop_indexing(Map, Path={bed,"menu","id"}) -> ok
   * indexes(Map) -> [{{Map, Path}, Position},...] for all indexes
