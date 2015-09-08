@@ -9,7 +9,7 @@ JC
 
 @doc 
 == JC == 
-== Erlang, Distributable, In-Memory Cache with Pub/Sub, Serializationand JSON-Query Support ==
+== Erlang, Distributable, In-Memory Cache with Pub/Sub, Serialization Assist and JSON-Query Support ==
 ===Features===
 <ul>
 <li>Cache entries are Map, Key, Value, [TTL], [Sequence]

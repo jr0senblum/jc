@@ -3,12 +3,12 @@
 %%% @copyright (C) 2015, Jim Rosenblum
 %%% @doc 
 %%% This gen_server is a singleton serializing access to the sequence table by
-%%% which the cache provides serialized put and evict operations.
+%%% which the cache provides support for serialized operations.
 %%% 
-%%% When the gen_server starts it tries to register itself using GLobal as
+%%% When the gen_server starts it tries to register itself using Global as
 %%% jc_sequence. If not successful, it monitors the PID currently associated
-%%% with jc_cluster. If that PID goes down, this gen_server again tries
-%%% to assign itself the global name
+%%% with jc_cluster. If that PID goes down, this gen_server tries to assign
+%%% itself the global name.
 %%% @end
 %%% Created : 25 Aug 2015 by Jim Rosenblum <jrosenblum@carelogistics.coml>
 %%% ----------------------------------------------------------------------------
