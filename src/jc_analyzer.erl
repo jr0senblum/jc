@@ -1,13 +1,13 @@
 %%% ----------------------------------------------------------------------------
 %%% @author Jim Rosenblum <jrosenblum@Jims-MBP.attlocal.net>
 %%% @copyright (C) 2015, Jim Rosenblum
-%%% @doc This gen_server provides update_statistcs/2 that is called by jc_store
-%%% whenever a json_query is used. This function creates/updates a corresponding 
-%%% row in the auto_index table. If the {Map, Json Query} is used sufficiently
-%%% often, an index is created.
+%%% @doc This gen_server provides update_statistcs/2 that is called by {@link 
+%%% jc_store. jc_store} whenever a json_query is used. Frequency of use is 
+%%% tracked, and if the {Map, Json Query} is used sufficiently often, an index
+%%% is created.
 %%%
 %%% @end
-%%% Created : 27 Aug 2015 by Jim Rosenblum <jrosenblum@Jims-MBP.attlocal.net>
+%%% Created : 27 Aug 2015 by Jim Rosenblum <jrosenblum@carelogistics.com>
 %%% ----------------------------------------------------------------------------
 -module(jc_analyzer).
 
@@ -28,7 +28,7 @@
 	 code_change/3]).
 
 
- % Record and type definitions.
+% Record and type definitions.
 -include("../include/records.hrl").   
 
  % Use QLC for some querying.
@@ -39,7 +39,7 @@
 -define(INTERVAL, (1000 * 60 * 60)). % 1 hour interval to do clean-up job.
 
 
-% Index if occurances of json query exceeds limit for a map within window_sec
+% Start indexing if occurances of json query exceeds limit within window_sec.
 -record(jc_analyzer_state, {limit      :: non_neg_integer(),
 			    window_sec :: non_neg_integer()}).
 
@@ -51,8 +51,9 @@
 
 
 %% -----------------------------------------------------------------------------
-%% Create or update the statistics entry which track ths use of Tuple on Mao.
-%%.
+%% Create or update the statistics entry which tracks ths use of the json query
+%% on the given map. 
+%%
 -spec update_statistic(map(), tuple()) -> ok.
 
 update_statistic(Map, Path) ->
@@ -119,7 +120,8 @@ handle_call(Request,  _From, State) ->
 %% -----------------------------------------------------------------------------
 %% @private Handle cast messages: Update statistics about a Map and Path.
 %%
--spec handle_cast(any(), #jc_analyzer_state{}) -> {noreply, #jc_analyzer_state{}}.
+-spec handle_cast(any(), #jc_analyzer_state{}) -> 
+			 {noreply, #jc_analyzer_state{}}.
 
 handle_cast({update_stat, Map, Path}, State) ->
     update_stat(Map, Path, State),    
@@ -131,9 +133,9 @@ handle_cast(Msg, State) ->
 
 
 %% -----------------------------------------------------------------------------
-%% @private Handle info messages: Master down, try to become master; Clean:
-%% clean the table of orphans rows - a sinlge use of a query search will be 
-%% deleted via periodic process.
+%% @private Handle info messages: Master down, try to become master; 
+%% Clean: clean the table of orphans rows - a sinlge use of a query search will 
+%% be deleted via periodic process.
 %%
 -spec handle_info(any(), #jc_analyzer_state{}) -> {noreply, #jc_analyzer_state{}}.
 
@@ -172,7 +174,6 @@ code_change(_OldVsn, State, _Extra) ->
 
 
 
-
 %%% ============================================================================
 %%% internal functions
 %%% ============================================================================
@@ -190,8 +191,7 @@ grab_name() ->
 	    erlang:send_after(?INTERVAL, jc_analyzer, clean);
 	no ->
 	    Master = global:whereis_name(?MODULE),
-	    lager:info("~p: master is: ~p.", 
-		       [?MODULE, Master]),
+	    lager:info("~p: master is: ~p.",  [?MODULE, Master]),
 	    _ = monitor(process, Master),
 	    ok
     end.
@@ -200,12 +200,12 @@ grab_name() ->
 %% -----------------------------------------------------------------------------
 %% Create or update the row which is gathering statistics on the use of JSON 
 %% querries. If one is used and there isn't an index for it, then a row should
-%% be created / updated, if it has been used sufficiently ask for an index.
-%%
+%% be created; otherwise updated. If it has been used sufficiently ask for an 
+%% index.
+%% 
 -spec update_stat(map(), tuple(), #jc_analyzer_state{}) -> ok.
 
 update_stat(Map, Path, #jc_analyzer_state{limit=Limit, window_sec=Window}) ->
-
     NowSecs = calendar:datetime_to_gregorian_seconds(calendar:universal_time()),
 
     case mnesia:dirty_read(auto_index, {Map, Path}) of
@@ -227,6 +227,7 @@ update_stat(Map, Path, #jc_analyzer_state{limit=Limit, window_sec=Window}) ->
 
 	    case (NowSecs - F) =< Window of
 		false ->
+                    % Occurances took longer than window to accumulate
 		    slide_window(R, NowSecs, Map, Path, Window);
 		true ->
 		    initiate_index(R, NowSecs, Map, Path)
@@ -260,16 +261,14 @@ initiate_index(#auto_index{count = C, times = T} = R, NowSecs, Map, Path) ->
 				    error_message = Msg}).
 
 
-% Remove all times, T,  such that now - T > WindowSize. Whats left is the new 
+% Remove all times, T,  such that now - T > WindowSize. What's left is the new 
 % count.
 %
 slide_window(#auto_index{times = T} = R, NowSecs, Map, Path, Window) ->
     lager:debug("~p: increment count and slidinf window on ~p.", 
 		[?SERVER, {Map, Path}]),
     
-    NewTimes = cull(lists:sort([NowSecs|T]), 
-		    NowSecs, 
-		    Window),
+    NewTimes = cull(lists:sort([NowSecs|T]), NowSecs, Window),
     
     case NewTimes of
 	[] ->
@@ -302,13 +301,12 @@ clean(Window) ->
     QH = qlc:q([R || R <- mnesia:table(auto_index),
 		     R#auto_index.indexed == false,
 		     (NowSecs - R#auto_index.last) >  Window]),
-    
-    case mnesia:async_dirty(fun() -> qlc:e(QH) end) of
-	[] ->
-	    ok;
-	Rs -> 
-	    lager:debug("~p: cleaning ~p records from auto_index table.", 
-			[?MODULE, length(Rs)]),
-	    [mnesia:dirty_delete_object(R) || R <- Rs]
-    end.
+
+    Records = [mnesia:dirty_delete_object(R) || 
+		  R <- mnesia:async_dirty(fun() -> qlc:e(QH) end)],
+
+    lager:debug("~p: deleted ~p records from auto_index table.",
+		[?MODULE, length(Records)]).
+
+
        
