@@ -794,7 +794,7 @@ max_ttl_evict_test(_Config) ->
     {ok, 10} = jc:get(evs, akey),
     timer:sleep(2000),
     jc:put(bed, long, 10),
-    timer:sleep(4000),
+    timer:sleep(4500),
     miss = jc:get(bed, short),
     {ok, 10} = jc:get(evs, akey),
     {ok, 10} = jc:get(bed, long),
@@ -812,12 +812,12 @@ max_ttl_evict_test(_Config) ->
 delete_map_since_test(_config)->
     {ok, {key, a}} = jc:put(bed, a, "A"),
     {ok, "A"} = jc:get(bed, a),
-    ok = bridge({delete_map_since, bed, 2}),
+    ok = bridge({evict_map_since, bed, 2}),
     {ok, "A"} = jc:get(bed, a),
     timer:sleep(2000),
-    ok = bridge({delete_map_since, bed, 2}),
+    ok = bridge({evict_map_since, bed, 2}),
     miss = jc:get(bed, a),
-    ok = bridge({delete_map_since, bed, crap}).
+    ok = bridge({evict_map_since, bed, crap}).
 
 
 % put the pid in ps_client and appropriate subscription in ps_sub

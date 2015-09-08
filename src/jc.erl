@@ -3,16 +3,8 @@
 %%% @copyright (C) 2011 - 2015, Jim Rosenblum
 %%% @doc This module wraps the mnesia-interacting, lower-level functions
 %%% implemented in {@link jc_store. jc_store} to provide a public, DIRTY,
-%%% set of opperations
-%%% s_jc provides searlized functions that use a sequence parameter to ensure
-%%% that put's and evicts are serialized according to a map-specific sequence
-%%% number.
-%%%
-%%% The put operations allow for the inclusion of a sequence number. If 
-%%% present and a put updates a reqcord that has a larger sequence number, 
-%%% neither a write nor evict will be broadcasted. The replaced value will be
-%%% re-inserted and this re-insetion WILL emit a write and evict message since
-%%% another client might have pulled the stale, but briefly resident record.
+%%% set of opperations. {@link jc_s. jc_s} provides functions that take a 
+%%% sequence parameter to better support serilization (consistency).
 %%%
 %%% jc can be called directly by Erlang clients; or,
 %%% Java node -> JInterface -> {@link jc_bridge. jc_bridge} -> jc
@@ -31,11 +23,10 @@
 
 % Delete Functions
 -export([clear/1,
-	 evict/2, evict_match/2, evict_all_match/1, 
+	 evict/2, evict_match/2, evict_all_match/1, evict_map_since/2, 
 	 flush/0, flush/1,
          remove_items/2, 
-	 delete_record_by_ref/1,
-	 delete_map_since/2]).
+	 delete_record_by_ref/1]).
 
 % Get Functions
 -export([contains_key/2,
@@ -262,24 +253,12 @@ evict_all_match(Criteria) ->
 
 
 %% -----------------------------------------------------------------------------
-%% @doc Delete the cache element by its record reference. Used by 
-%% {@link jc_eviction_manager. jc_eviction_manager}.
+%% @doc Evict all items in the map whose create_tm is older than Age seconds.
 %% 
--spec delete_record_by_ref(rec_ref()) -> ok | {error, mnesia_abort}.
+-spec evict_map_since(map_name(), AgeSecs::seconds()) -> ok.
 
-delete_record_by_ref(RecRef) ->
-    lager:debug("~p: delete_record_by_ref: ~p.",[?MODULE, RecRef]),
-    F = fun() -> jc_store:delete_record_by_ref(RecRef) end,
-    trans_execute(F).
-
-
-%% -----------------------------------------------------------------------------
-%% @doc Delete all items in the map whose create_tm is older than Age seconds.
-%% 
--spec delete_map_since(map_name(), AgeSecs::seconds()) -> ok.
-
-delete_map_since(Map, AgeSecs) when is_integer(AgeSecs) ->
-    lager:debug("~p: delete_map_since: ~p older than ~p.",
+evict_map_since(Map, AgeSecs) when is_integer(AgeSecs) ->
+    lager:debug("~p: evict_map_since: ~p older than ~p.",
 		[?MODULE, Map, AgeSecs]),
     Trans = fun() ->
 		    Recs = jc_store:get_map_since(Map, AgeSecs),
@@ -289,9 +268,20 @@ delete_map_since(Map, AgeSecs) when is_integer(AgeSecs) ->
     trans_execute(Trans),
     ok;
 
-delete_map_since(_Map, _AgeSecs) ->
+evict_map_since(_Map, _AgeSecs) ->
     ok.
 
+
+%% -----------------------------------------------------------------------------
+%% @doc Delete the cache element by its record reference. Used by 
+%% {@link jc_eviction_manager. jc_eviction_manager}.
+%% 
+-spec delete_record_by_ref(rec_ref()) -> ok | {error, mnesia_abort}.
+
+delete_record_by_ref(RecRef) ->
+    lager:debug("~p: delete_record_by_ref: ~p.",[?MODULE, RecRef]),
+    F = fun() -> jc_store:delete_record_by_ref(RecRef) end,
+    trans_execute(F).
 
 
 %% -----------------------------------------------------------------------------

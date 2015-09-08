@@ -186,8 +186,8 @@ handle_info({From, {clear, Map}}, State) ->
     _Pid = spawn(fun() -> From ! jc:clear(Map) end),
     {noreply, State};
 
-handle_info({From, {delete_map_since, Map, Secs}}, State) ->
-    _Pid = spawn(fun() -> From ! jc:delete_map_since(Map, Secs) end),
+handle_info({From, {evict_map_since, Map, Secs}}, State) ->
+    _Pid = spawn(fun() -> From ! jc:evict_map_since(Map, Secs) end),
     {noreply, State};
 
 handle_info({From, {evict, Map, Key}}, State) ->

@@ -321,7 +321,7 @@ handle_max_ttl(Secs) ->
     CullFn = fun(#max_ttl{map = Map, ttl_secs = Max_Secs}, Acc) ->
 		lager:debug("~p: max_ttl evicting from map ~p, older than ~p.", 
 			    [?MODULE, Map, Secs]),
-		jc:delete_map_since(Map, Max_Secs),
+		jc:evict_map_since(Map, Max_Secs),
 		Acc
 	end,
     Trans = fun() -> mnesia:foldl(CullFn, [], max_ttl) end,
