@@ -1,0 +1,8 @@
+language: erlang
+otp_release:
+   - 17.4
+   - 17.3
+   - 17.1
+   - 17.0
+
+script: "sh -ex .travis_build.sh" 
