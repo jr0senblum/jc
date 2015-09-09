@@ -6,5 +6,6 @@ cp -f travis/rebar.config rebar.config
 cp -f travis/jc.app.src src/jc.app.src  
 
 chmod a+x ./rebar3
-./rebar3 update
+./rebar3 unlock
+./rebar3 as test update
 ./rebar3 ct 
