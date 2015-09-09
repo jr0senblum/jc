@@ -1,0 +1,73 @@
+% -*- mode: erlang -*-
+
+{erl_opts, [{d, 'NO_NIF', true},
+	    {native, o3},
+	    warn_missing_spec,
+            {parse_transform, lager_transform}
+	   ]}.
+
+
+
+{cover_enabled, true}.
+
+
+{deps, [
+       	{lager, {git, "git://github.com/basho/lager.git", {tag, "2.1.0"}}},
+	{ej,    {git, "git://github.com/seth/ej.git",	  {branch, "master"}}},
+        % using a version that works with rebar3
+	{jsone, {git, "git://github.com/sile/jsone.git",
+		 {branch, "master"}}}
+       ]}.						     
+
+
+% Documentation
+{edoc_opts, [{skip_deps, true},
+             {preprocess, true}, 
+	     {packages, true},
+	     {includes, "./include"}] }.
+
+
+{dialyzer_opts, [{warnings, [no_return,
+                             no_unused,
+                             no_improper_lists,
+                             no_fun_app,
+                             no_match,
+                             no_opaque,
+                             no_fail_call,
+                             error_handling,
+                             race_conditions,
+                             behaviours,
+                             unmatched_returns]}]}.
+
+
+{relx, [{release, {'jc', "v0.9.0"},
+         ['jc',
+          kernel,
+	  stdlib,
+	  sasl, 
+	  {observer,load},
+	  {wx, load},
+	  {runtime_tools, load}
+	 ]}, 
+	
+        {sys_config, "./config/sys.config"},
+        {vm_args, "./config/vm.args"},
+
+        {dev_mode, true},
+        {include_erts, false},
+
+        {extended_start_script, true}]}.
+
+{profiles, [
+	    {prod, [
+		    {relx, [{dev_mode, false},
+                            {include_erts, true},
+			    {include_src, false}]}
+		   ]},
+	    {test, [
+		    {dialyzer_opts, [{warnings, []}]},
+		    {ct_opts, [{cover, "test/jc.coverspec"}]}
+		   ]}
+	    
+	    ]
+}.
