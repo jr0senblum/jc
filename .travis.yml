@@ -2,7 +2,4 @@ language: erlang
 otp_release:
    - 17.4
 
-before_script:
-    "cp -f travis/rebar.config.travis rebar.config"
-    "cp -f travis/jc.app.src src/jc.app.src"  
 script: "sh -ex .travis_build.sh" 
