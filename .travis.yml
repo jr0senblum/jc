@@ -1,6 +1,6 @@
 sudo: required
 language: erlang
 otp_release:
-   - 17.4
+   - 17
 
 script: "sh -ex .travis_build.sh" 
