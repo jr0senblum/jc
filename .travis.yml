@@ -1,4 +1,4 @@
 language: erlang
-script: rebar3 compile && rebar3 ct
+script: rebar compile && rebar3 ct
 otp_release:
   - R17.0
