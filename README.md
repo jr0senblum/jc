@@ -19,21 +19,21 @@ JC
     match/x and remove/x operations. Operations whose sequence
     number is lower than the current, per-map max are disallowed 
     thereby ensuring, for example, that stale puts do not 
-    overwrite "fresh" ones because the "fresh" one beat the stale
+    overwrite fresher ones due to the fresh one beating the stale
     one to the cache.
- *  JSON Query Support
-     * Query by JSON: When Values are JSON, evict_match/2,
-       evict_all_match/1 and values_match/2 can search or evict
-       keys whose JSON value, at a location specificed by a java-style, dot-path
-       string equals the specified value. That is,
-       jc:values_match(bed, "id.type=3") would return all values for Keys in the
-       bed Map whose JSON value was an object with an "id":3 in the top-level.
-    * Ad-hoc, Index Support: In order to support faster
-      operations, (2-3 orders of magnitude), each map can have up to four,
-       dot-path, strings configured for which jc will provide 
-       index support.
-    * Auto Index Recognition - Ability to detect frequently used
-      JSON querries and automatically start indexing on them.
+*  JSON Query Support
+  * Query by JSON: When Values are JSON, evict_match/2,
+    evict_all_match/1 and values_match/2 can search or evict
+    keys whose JSON value, at a location specificed by a java-style, dot-path
+    string equals the specified value. That is,
+    jc:values_match(bed, "id.type=3") would return all values for Keys in the
+    bed Map whose JSON value was an object with an "id":3 in the top-level.
+  * Ad-hoc, Index Support: In order to support faster
+    operations, (2-3 orders of magnitude), each map can have up to four,
+    dot-path, strings configured for which jc will provide 
+    index support.
+  * Auto Index Recognition - Ability to detect frequently used
+    JSON querries and automatically start indexing on them.
 * User Controlled Eviction
   * Map-level TTL: A job runs at configured intervals and removes
   items whose create-date is older than a map-specific, configured 

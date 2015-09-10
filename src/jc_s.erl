@@ -25,9 +25,9 @@
 	 put_all/3, put_all/4]).
 
 % Delete Functions
--export([evict/3, 
-	 evict_match/3, 
+-export([evict/3, 	 
 	 evict_all_match/2,
+	 evict_match/3, 
 	 remove_items/3]).
 
 % Meta Functions
