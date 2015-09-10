@@ -1,8 +1,7 @@
 JC  [![Build Status](https://travis-ci.org/jr0senblum/jc.svg)](https://travis-ci.org/jr0senblum/jc)
 ====
 
-##Erlang, Distributable, In-Memory Cache with Pub/Sub,  Serialization Assist and
-JSON-Query Support.
+##Erlang, Distributable, In-Memory Cache with Pub/Sub,  Serialization Assist and JSON-Query Support.
 
 
 
