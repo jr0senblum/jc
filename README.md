@@ -1,9 +1,10 @@
-JC  [![Build Status](https://travis-ci.org/jr0senblum/jc.svg)](https://travis-ci.org/jr0senblum/jc)
+JC  
 ====
 
 ##Erlang, Distributable, In-Memory Cache with Pub/Sub,  Serialization Assist and JSON-Query Support.
 
 
+[![Build Status](https://travis-ci.org/jr0senblum/jc.svg)](https://travis-ci.org/jr0senblum/jc)
 
 ###Features
 * Cache entries are Map, Key, Value, [TTL], [Sequence]
