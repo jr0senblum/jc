@@ -30,7 +30,7 @@
     syntax_tools,
     compiler,
     lager,
-    jonse,
+    jsone,
     ej
    ]},
   {included_applications, [mnesia]},
