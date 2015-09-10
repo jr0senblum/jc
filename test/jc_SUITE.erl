@@ -73,7 +73,7 @@ init_per_suite(Config) ->
     application:set_env(jc,  analyze_freq, {5, 5}),
 
     application:ensure_all_started(jc),
-    lager:set_loglevel(lager_console_backend, error),
+%    lager:set_loglevel(lager_console_backend, error),
     [{maps, [bed, evsRequest]} | Config].
 
 init_per_testcase(_, Config) ->

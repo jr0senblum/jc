@@ -10,4 +10,4 @@ chmod a+x ./rebar3
 ./rebar3 update
 epmd -daemon
 epmd -names
-env DEBUG=1 ./rebar3 ct 
+./rebar3 ct 
