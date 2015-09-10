@@ -5,6 +5,9 @@ JC
 JSON-Query Support.
 
 
+[![Build Status](https://travis-ci.org/jr0senblum/jc.svg)](https://travis-ci.org/jr0senblum/jc)
+
+
 ###Features
 * Cache entries are Map, Key, Value, [TTL], [Sequence]
   * Maps represent a name-space for Keys - similar to the notion
