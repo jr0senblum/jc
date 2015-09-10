@@ -30,9 +30,13 @@
 	 terminate/2, 
 	 code_change/3]).
 
+-export_type ([seq/0]).
+
+-type seq() :: non_neg_integer() | -1.
 
  % Table and record definitions.
 -include("../include/records.hrl").   
+
 
 
 -define(SERVER, ?MODULE).

@@ -1,17 +1,12 @@
 % Types
+-type seconds()          :: non_neg_integer().
+
 -type map_name()         :: atom().
 -type key()              :: any().
 -type value()            :: any().
-
--type rec_ref()          :: reference().
-
--type seconds()          :: non_neg_integer().
 -type ttl()              :: seconds().
+-type rec_ref()          :: reference().
 -type time_stamp()       :: seconds().
--type seq()              :: non_neg_integer() | -1.
--type create_tm()        :: time_stamp().
--type last_update_tm()   :: time_stamp().
-
 
 
 % Key_to_value - an ordered_set table whose key is {key, map}. Ref is used by
@@ -42,7 +37,7 @@
 
 -record(seq,
 	{map            :: map_name(),
-	 seq_no         :: seq()
+	 seq_no         :: jc_sequence:seq()
 	}).
 
 % Holds information about json-path's that will be the target of a query-sellect

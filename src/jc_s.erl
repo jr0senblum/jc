@@ -80,7 +80,8 @@ sequence() ->
 %% @doc Put the entry into the cache with a TTL of infinity using the sequence
 %% number to ensure serialized operations.
 %%
--spec put(map_name(), key(), value(), seq()) -> {ok, {key, key()}} | trx_ret().
+-spec put(map_name(), key(), value(), jc_sequence:seq()) -> 
+		 {ok, {key, key()}} | trx_ret().
 
 
 put(Map, Key, Value, Seq) when ?VALID(Seq) ->
@@ -94,7 +95,8 @@ put(_Map, _Key, _Value, _Seq) ->
 %% @doc Put the entry into the cache with the TTL using the sequence number
 %% to ensure serialized operations.
 %%
--spec put(map_name(), key(), value(), ttl(), seq()) -> {ok, {key, key()}} |
+-spec put(map_name(), key(), value(), ttl(), jc_sequence:seq()) -> 
+		 {ok, {key, key()}} |
 						       trx_ret().
 
 
@@ -131,7 +133,7 @@ do_put(Map, Key, Value, TTL) ->
 %% Use the sequence number to ensure serialized operations. Return the number
 %% of successes.
 %%
--spec put_all(map_name(), list({key(), value()}), seq()) -> 
+-spec put_all(map_name(), list({key(), value()}), jc_sequence:seq()) -> 
 		     {ok, non_neg_integer()} | trx_ret().
 
 
@@ -147,7 +149,7 @@ put_all(_M, _K, _S) ->
 %% Use the sequence number to ensure serialized operations. Return the number
 %% of successes.
 %%
--spec put_all(map_name(), list({key(), value()}), ttl(), seq()) -> 
+-spec put_all(map_name(), list({key(), value()}), ttl(), jc_sequence:seq()) -> 
 		     {ok, non_neg_integer()} | trx_ret().
 
 
@@ -179,7 +181,7 @@ put_all(_M, _K, _T, _S) ->
 %% @doc Evict {@link map_name(). Map}, {@link key(). Key} if sequence is 
 %% greater than or equal to the last seen sequence.
 %
--spec evict(map_name(), key(), seq()) -> ok | trx_ret().
+-spec evict(map_name(), key(), jc_sequence:seq()) -> ok | trx_ret().
 
 evict(Map, Key, Seq) ->
     lager:debug("~p: evict map:~p, key: ~p, and seq: ~p.).", 
@@ -210,7 +212,8 @@ evict(Map, Key, Seq) ->
 %% a.b.c is dot-path consisting of dot-separated JSON object-keys or JSON array
 %% indexes: "bed.id=10" or "bed.id.2.type.something=\"stringvalue\"".
 %%
--spec evict_match(map_name(), Criteria::string(), seq()) ->  ok | trx_ret().
+-spec evict_match(map_name(), Criteria::string(), jc_sequence:seq()) ->  
+			 ok | trx_ret().
 
 evict_match(Map, Criteria, Seq) when ?VALID(Seq) ->
     lager:debug("~p: evict_match with map: ~p, criteria: ~p and seq: ~p.", 
@@ -251,7 +254,8 @@ do_evict_match(Map, Criteria) ->
 %% a.b.c is dot-path consisting of dot-separated JSON object-keys or JSON array
 %% indexes: "bed.id=10" or "bed.id.2.type.something=\"stringvalue\"".
 %%
--spec evict_all_match(Criteria::string(), seq()) ->  ok | trx_ret().
+-spec evict_all_match(Criteria::string(), jc_sequence:seq()) ->  
+			     ok | trx_ret().
 
 evict_all_match(Criteria, Seq) when ?VALID(Seq) ->
     lager:debug("~p: evict_all_match with ~p and seq ~p:.", 
@@ -269,7 +273,7 @@ evict_all_match(_C, _S) ->
 %% @doc Evict all K's, return all {K, V} pairs that were found. Enforces that
 %% the sequence number is greater than what has been seen.
 %%
--spec remove_items(Map::map_name(), Keys::[key()], seq()) -> 
+-spec remove_items(Map::map_name(), Keys::[key()], jc_sequence:seq()) -> 
 			  {ok, [{key(), value()}]} | trx_ret().
 
 remove_items(Map, Keys, Seq) when ?VALID(Seq) ->
