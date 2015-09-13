@@ -21,14 +21,21 @@
 %%% ============================================================================
 
 %% -----------------------------------------------------------------------------
-%% @private Ask jc_store to initialize or join the the mnesia cluster and then
-%% fire-up the top level supervisor.
+%% @private Ask jc_store to initialize or join the the mnesia cluster, start
+%% the tcp listeners (for protocol users), and fire-up the top level supervisor.
 %% 
 -spec start (normal | {takeover   | failover, atom()}, [{node, atom()}]) -> 
    		      {ok, pid()} | {error, atom()}.
 
 start(_StartType, _StartArgs) ->
     ok = jc_cluster:init(),
+    Port = application:get_env(jc, protocol_port, 5555),
+    {ok, _} = ranch:start_listener(jc_proto, 
+				   100,
+				   ranch_tcp, 
+				   [{port, Port}], 
+				   jc_protocol, [Port]),
+    lager:info("tcp, protocol listener is up and listening on port: ~p", [Port]), 
     case jc_sup:start_link() of
 	{ok, Pid} ->
 	    {ok, Pid};

@@ -13,4 +13,5 @@
  {<<"lager">>,
   {git,"git://github.com/basho/lager.git",
        {ref,"840acab51ebfb731de0137d9c6d41e7db4a12793"}},
-  0}].
+  0},
+ {<<"ranch">>,{pkg,<<"ranch">>,<<"1.1.0">>},0}].
