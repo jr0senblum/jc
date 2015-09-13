@@ -14,13 +14,6 @@
 		jc_store,	
 		jc_sup
 	       ]},
-  {registered, 
-   [jc_analyzer,
-    jc_bridge,
-    jc_eviction_manager, 
-    jc_psub,
-    jc_sequence,
-    jc_sup ]},
   {mod, {'jc_app', []}},
   {applications,
    [kernel,
