@@ -33,6 +33,7 @@
     lager,
     jsone,
     ej
+    ranch
    ]},
   {included_applications, [mnesia]},
   {env,[]},
