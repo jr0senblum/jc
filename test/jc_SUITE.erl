@@ -935,7 +935,7 @@ cluster_test(_Config) ->
     ok = bridge({node_topic_sub}),
 
     
-    erlang:open_port({spawn, "erl -name jc3@127.0.0.1 -config ../../lib/jc/test/app.config -eval 'application:ensure_all_started(jc)' -pa ../../lib/*/ebin"},[out]),
+    erlang:open_port({spawn, "erl -name jc3@127.0.0.1 -config ../../lib/jc/test/app2.config -eval 'application:ensure_all_started(jc)' -pa ../../lib/*/ebin"},[out]),
     timer:sleep(2000),
     {jc_node_events,{nodeup,'jc3@127.0.0.1',
 		     ['jc1@127.0.0.1','jc2@127.0.0.1',
