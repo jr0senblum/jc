@@ -17,9 +17,9 @@
 %%% Otherwise, CRLF MUST be FALSE and lines MUST NOT be terminated with \r\n. 
 %%% Server responds to CONNECT frames with BINARY STRINGS.
 %%%
-%%% 00000011VERSION:1.0
+%%% [11]VERSION:1.0
 %%% or
-%%% 00000005error and the socket will be closed.
+%%% [5]error and the socket will be closed.
 %%%
 %%% COMMAND frames consist of the byte_size enclosed in brackets
 %%% followed by the command. If CRLF was set to TRUE when connecting than
@@ -28,14 +28,14 @@
 %%% nor does it include any terminating \r\n characters.
 %%%
 %%% For example:
-%%% 00000015jc:put(bed,1,1)
+%%% [15jc:put(bed,1,1)
 %%%
 %%% Closing a CONNECTION is a COMMAND frame as follows
-%%% 00000005CLOSE
+%%% [5]CLOSE
 %%%
 %%% RESPONSE frames are identical to COMMAND frames, but NEVER end with \r\n.
 %%% Like all other lines, RESPONSE lines are BINARY STRINGS
-%%% 00000006{ok,1}
+%%% [6]{ok,1}
 %%%
 %%% @end
 %%% Created : 25 Aug 2015 by Jim Rosenblum <jrosenblum@carelogistics.coml>
@@ -233,26 +233,45 @@ proto(B, #jc_pro_state{command=C,connected=false,transport=T,socket=S}=State) ->
 	    lager:debug("~p (~p): connected ~p",
 			[?MODULE, self(), {Version,
 					   #jc_pro_state.username}]),
-	    T:send(S, marshal("VERSION:1.0"));
+	    T:send(S, <<"[11]VERSION:1.0">>);
 	false ->
 	    ok
     end,
     NewState;
 
 %% CONNECTED, parsing a COMMAND frame - look for the size of the COMMAND.
-proto(B,#jc_pro_state{connected=true,have_size=false,crlf=F}=State) ->
+proto(B,#jc_pro_state{connected=true,have_size=false,crlf=F,size=Size}=State) ->
     Stripped = F(B),
-    io:format("Received ~p~n",[Stripped]),
-    <<Size:8, Command/binary>> = Stripped,
-    io:format("Size, Message ~p ~p",[Size, Command]),
-    get_command(Command, <<>>,State#jc_pro_state{have_size=true, size=Size});
-
+    NewState = case Size of
+		   undefined ->
+		       get_size(Stripped, <<>>, State);
+		   Partial ->
+		       get_size(Stripped, Partial, State)
+	       end,
+    NewState;
 
 %% Parsing COMMAND frame, size has been retrieved, accumulate the command.
 proto(B,#jc_pro_state{connected=true,have_size=true,command=Com,crlf=F}=State) ->
     Stripped = F(B),
     get_command(Stripped, Com, State).
 
+
+
+%% Walk the binary, accumulating the size from [N] portion of the COMMAND frame.
+get_size(<<>>, Acc, State) ->
+    State#jc_pro_state{size=Acc};
+
+get_size(<<"[", B/binary>>, Acc, State) ->
+    get_size(B, Acc, State);
+
+get_size(<<N:1/binary, B/binary>>, Acc, State) when ?DIG(N) ->
+    get_size(B, <<Acc/binary, N/binary>>, State);
+
+get_size(<<"]", B/binary>>, Acc, State) ->
+    CmdSize = binary_to_integer(Acc),
+    get_command(B, <<>>, State#jc_pro_state{size=CmdSize, have_size = true});
+get_size(_B, _A, _State) ->
+    throw({command, bad_size_segment}).
 
 
 
@@ -371,6 +390,5 @@ reset_state(S) ->
 marshal(Message) ->
     Bin  = binary:list_to_bin(io_lib:format("~p", [Message])),
     Size = byte_size(Bin),
-    <<Size:8, Bin/binary>>.
-
+    ["[",integer_to_list(Size),"]", Bin].
 
