@@ -150,7 +150,7 @@ handle_info(timeout, State) ->
 	{stop, normal, State};
 
 handle_info(Msg, State = #jc_pro_state{socket=S, transport = T}) ->
-    T:send(S, jc_edn:to_edn(Msg)),
+    T:send(S, marshal(Msg)),
     {noreply, State, ?TIMEOUT}.
 
 
@@ -207,10 +207,10 @@ protocol(B, #jc_pro_state{transport = T, socket = S} = State) ->
 	proto(B, State)
     catch
 	throw:{fatal, _F} ->
-	    T:send(S, marshal(error)),
+	    T:send(S, marshal({error, protocol})),
 	    self() ! {tcp_closed, S};
 	_:_ ->
-	    T:send(S, marshal(error)),
+	    T:send(S, marshal({error, protocol})),
 	    reset_state(State)
     end.
 	
@@ -233,45 +233,24 @@ proto(B, #jc_pro_state{command=C,connected=false,transport=T,socket=S}=State) ->
 	    lager:debug("~p (~p): connected ~p",
 			[?MODULE, self(), {Version,
 					   #jc_pro_state.username}]),
-	    T:send(S, <<"[11]VERSION:1.0">>);
+	    T:send(S, marshal({version, <<"1.0">>}));
 	false ->
 	    ok
     end,
     NewState;
 
 %% CONNECTED, parsing a COMMAND frame - look for the size of the COMMAND.
-proto(B,#jc_pro_state{connected=true,have_size=false,crlf=F,size=Size}=State) ->
+proto(B,#jc_pro_state{connected=true,have_size=false,crlf=F}=State) ->
     Stripped = F(B),
-    NewState = case Size of
-		   undefined ->
-		       get_size(Stripped, <<>>, State);
-		   Partial ->
-		       get_size(Stripped, Partial, State)
-	       end,
-    NewState;
+    <<Size:8, C/binary>> = Stripped,
+    get_command(C, <<>>, State#jc_pro_state{have_size=true, size=Size});
+
 
 %% Parsing COMMAND frame, size has been retrieved, accumulate the command.
 proto(B,#jc_pro_state{connected=true,have_size=true,command=Com,crlf=F}=State) ->
     Stripped = F(B),
     get_command(Stripped, Com, State).
 
-
-
-%% Walk the binary, accumulating the size from [N] portion of the COMMAND frame.
-get_size(<<>>, Acc, State) ->
-    State#jc_pro_state{size=Acc};
-
-get_size(<<"[", B/binary>>, Acc, State) ->
-    get_size(B, Acc, State);
-
-get_size(<<N:1/binary, B/binary>>, Acc, State) when ?DIG(N) ->
-    get_size(B, <<Acc/binary, N/binary>>, State);
-
-get_size(<<"]", B/binary>>, Acc, State) ->
-    CmdSize = binary_to_integer(Acc),
-    get_command(B, <<>>, State#jc_pro_state{size=CmdSize, have_size = true});
-get_size(_B, _A, _State) ->
-    throw({command, bad_size_segment}).
 
 
 
@@ -289,20 +268,16 @@ get_command(<<C:1/binary, B/binary>>, Acc, #jc_pro_state{size=Size} = State) whe
 
 
 % Execute the COMMAND.
-parse(#jc_pro_state{socket = S, command = Com} = State) ->
+parse(#jc_pro_state{transport = T, socket = S, command = Com} = State) ->
     lager:debug("~p (~p): executing command: ~p",  
 		[?MODULE, self(), Com]),
 
     Edn = binary_to_list(Com),
-    Payload = list_to_tuple(erldn:to_erlang(element(2, erldn:parse_str(Edn)))),
+    [M, F, A] = erldn:to_erlang(element(2, erldn:parse_str(Edn))),
+    R = apply(M, F, A),
+    T:send(S, marshal(R)),
+    reset_state(State).
 
-    case Payload of
-	{close} ->
-	    self() ! {tcp_closed, S};
-	_ ->
-	    jc_bridge ! {self(), Payload},
-	    reset_state(State)
-   end.
 
 
 
@@ -374,7 +349,8 @@ reset_state(S) ->
 
 % Messsage -> [Size]Message
 marshal(Message) ->
-    Bin  = binary:list_to_bin(io_lib:format("~p", [Message])),
+    Bin = iolist_to_binary(jc_edn:to_edn(Message)),
     Size = byte_size(Bin),
-    ["[",integer_to_list(Size),"]", Bin].
+    <<Size:8, Bin/binary>>.
+
 

@@ -11,11 +11,16 @@ to_edn(Term) ->
 edn({error, badarg}) ->
     "{:error :badarg}";
 
+edn({error, protocol}) ->
+    "{:error :protocol}";
+
 edn(ok) ->
     ":ok";
 
 edn({ok, not_exist}) ->
     ":not_exist";
+edn({version, V}) ->
+    ["{:version ", V,"}"];
 
 edn(true) ->
     "true";
@@ -33,10 +38,10 @@ edn({records, Cnt}) ->
     ["{:records ", edn_term(Cnt), "}"];
 
 edn({ok, {key, K}}) ->
-    ["{:key ", edn_term(K), "}"];
+    ["{:key ", edn_(K), "}"];
 
 edn({ok, {value, K}}) ->
-    ["{:value ", edn_term(K), "}"] ;
+    ["{:value ", edn_(K), "}"] ;
 
 edn({ok, {H, M}}) when is_list(H), is_list(M) ->
     ["{:hits (", edn_term(H), ") :misses (", edn_term(M), ")}"];
@@ -52,8 +57,37 @@ edn({ok, H}) when is_list(H) ->
 edn({ok, [T|_]=L}) when is_tuple(T) ->
     ["(", edn_term(L), ")}"].
 
-edn_term(D) when is_tuple(D), element(1, D) == dict ->
+
+edn_([]) ->
+    "()";
+
+edn_([_|_]=L) ->
+    ["(", edn_term(L), ")"];
+edn_(T) ->
+    edn_term(T).
+
+edn_term(nil) -> ["nil"];
+
+edn_term({keyword,nil}) -> [":nil"];
+edn_term({symbol, S}) -> atom_to_list(S);
+
+edn_term({'char', C}) ->
+    ["\\", C];
+
+edn_term(D) when is_tuple(D), element(1, D) == dict  ->
     ["{", [[edn_term(K)," ", edn_term(V)," " ] || {K,V} <- D:to_list()], "}"];
+
+edn_term(D) when is_tuple(D), element(1, D) == set  ->
+    ["#{", [[edn_term(K)," "] || K <- sets:to_list(D)], "}"];
+
+edn_term({map, L}) when is_list(L)  ->
+    ["{", [[edn_term(K)," ", edn_term(V)," " ] || {K,V} <- L], "}"];
+
+edn_term({vector, L}) when is_list(L) ->
+    ["[", [[edn_term(E)," "] || E <- L], "]"];
+
+edn_term({set, L}) when is_list(L) ->
+    ["#{", [[edn_term(E)," "] || E <- L], "}"];
 
 edn_term([]) ->
     ["()"];
@@ -84,6 +118,3 @@ edn_term(false) ->
     "false";
 edn_term(Term) when is_atom(Term) ->
     [":", atom_to_list(Term)].
-
-
-
