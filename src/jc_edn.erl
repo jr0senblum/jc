@@ -26,9 +26,6 @@ edn(false) ->
 edn(miss) ->
     ":miss";
 
-edn({ok, []}) ->
-    ["()"];
-
 edn({ok, {cnt, Cnt}}) ->
     ["{:count ", edn_term(Cnt), "}"];
 
@@ -44,8 +41,19 @@ edn({ok, {value, K}}) ->
 edn({ok, {H, M}}) when is_list(H), is_list(M) ->
     ["{:hits (", edn_term(H), ") :misses (", edn_term(M), ")}"];
 
+
+edn({ok, []}) ->
+    ["()"];
+
+edn({ok, H}) when is_list(H) ->
+    ["(", edn_term(H), ")"];
+
+
 edn({ok, [T|_]=L}) when is_tuple(T) ->
     ["(", edn_term(L), ")}"].
+
+edn_term(D) when is_tuple(D), element(1, D) == dict ->
+    ["{", [[edn_term(K)," ", edn_term(V)," " ] || {K,V} <- D:to_list()], "}"];
 
 edn_term([]) ->
     ["()"];
@@ -62,7 +70,7 @@ edn_term([H|T]) ->
 edn_term({K, V}) ->
     Key = edn_term(K),
     Value = edn_term(V),
-    ["{:", Key, " ", Value, "}"];	   
+    ["{", Key, " ", Value, "}"];	   
 
 edn_term(Bin) when is_binary(Bin) -> 
     jsonx:encode(Bin);
