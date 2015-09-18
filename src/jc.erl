@@ -63,6 +63,7 @@
 
 stop()->
     application:stop(jc),
+    application:stop(ranch),
     ok.
     
 
@@ -167,8 +168,8 @@ put(_M, _K, _V, _T) ->
 %% @doc Put all the {K,V} tuples contained in the list. Return 
 %% the number of successes. Use infinity for the ttl. 
 %%
--spec put_all(map_name(), list(tuple())) -> {ok, non_neg_integer()} |
-						   {error, badarg}.
+-spec put_all(map_name(), list(tuple())) -> {ok, {cnt, non_neg_integer()}} |
+					    {error, badarg}.
 
 put_all(Map, KVList) -> 
     put_all(Map, KVList, ?INFINITY).
@@ -178,14 +179,14 @@ put_all(Map, KVList) ->
 %% @doc Put all the {K,V} pairs contained in the list. Return the number of 
 %% successes. Use the supplied ttl. 
 %%
--spec put_all(map_name(), list(tuple()), ttl()) -> {ok, non_neg_integer()} |
+-spec put_all(map_name(), list(tuple()), ttl()) -> {ok,{cnt,non_neg_integer()}}|
 						   {error, badarg}.
 
 put_all(Map, KVList, TTL) when ?VALID(TTL) ->
     lager:debug("~p: put_all for map ~p with TTL: ~p.", [?MODULE, Map, TTL]),
 
     Results = [put(Map, Key, Value, TTL) || {Key, Value} <- KVList],
-    {ok, length([K || {ok, {key, K}} <- Results])};
+    {ok, {cnt, length([K || {ok, {key, K}} <- Results])}};
 put_all(_m, _K, _T) ->
     {error, badarg}.
 
@@ -366,7 +367,7 @@ contains_key(Map, Key) ->
 %% -----------------------------------------------------------------------------
 %% @doc Retrieve the data associated with Key.
 %%						%
--spec get(map_name(), key()) -> {ok, value()} | miss.
+-spec get(map_name(), key()) -> {ok, {value, value()}} | miss.
 
 get(Map, Key) ->
     lager:debug("~p: get (~p, ~p).",[?MODULE, Map, Key]),
@@ -376,7 +377,7 @@ get(Map, Key) ->
 	{ok, jc_miss} -> 
 	    miss;
 	{ok, #key_to_value{value=Value}} -> 
-	    {ok, Value}
+	    {ok, {value, Value}}
     end.
 
 

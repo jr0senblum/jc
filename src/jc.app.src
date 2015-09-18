@@ -20,6 +20,7 @@
     ranch,
     lager,
     jsonx,
+    erldn,
     ej
    ]},
   {included_applications, [mnesia]},
@@ -30,6 +31,7 @@
 	     jc_app,
 	     jc_bridge,
 	     jc_cluster,
+	     jc_edn,
 	     jc_eviction_manager,	
 	     jc_protocol,
 	     jc_psub,

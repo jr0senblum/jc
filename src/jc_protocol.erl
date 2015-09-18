@@ -150,7 +150,7 @@ handle_info(timeout, State) ->
 	{stop, normal, State};
 
 handle_info(Msg, State = #jc_pro_state{socket=S, transport = T}) ->
-    T:send(S, marshal(Msg)),
+    T:send(S, jc_edn:to_edn(Msg)),
     {noreply, State, ?TIMEOUT}.
 
 
@@ -293,30 +293,16 @@ parse(#jc_pro_state{socket = S, command = Com} = State) ->
     lager:debug("~p (~p): executing command: ~p",  
 		[?MODULE, self(), Com]),
 
-    {ok,Scanned,_} = erl_scan:string(binary_to_list(<<Com/binary, ".">>)),
-    {ok,Parsed} = erl_parse:parse_exprs(Scanned),
+    Edn = binary_to_list(Com),
+    Payload = list_to_tuple(erldn:to_erlang(element(2, erldn:parse_str(Edn)))),
 
-    case Parsed of
-	[{var,1,'CLOSE'}] -> 
+    case Payload of
+	{close} ->
 	    self() ! {tcp_closed, S};
-	AST ->	
-	    AST2 = make_ast(AST),
-	    {value, _R, _} = erl_eval:exprs(AST2, []),
+	_ ->
+	    jc_bridge ! {self(), Payload},
 	    reset_state(State)
-    end.
-
-
-% Convet the AST to one that sends jc_bridge the command
-% {Op, P1, P2} becomes jc_bridge ! {self(), {Op, P1, P2}}
-%
-make_ast(AST)->
-    [{tuple, 1, R}] = AST,
-    [{op,1,'!',
-      {atom,1,jc_bridge},
-      {tuple,1,
-       [{call,1,{atom,1,self},[]},
-	{tuple,1,
-	 R}]}}].
+   end.
 
 
 

@@ -58,7 +58,7 @@ JC
 ###Cache Functions (jc)
 * Create
   * put(Map, Key, Value, [TTLSecs]) -> {ok, {key, Key}} | {error, badarg}
-  * put_all(Map, [{K,V},{K,V},...], [TTLSecs]) -> {ok, CntSuccessfulPuts} |
+  * put_all(Map, [{K,V},{K,V},...], [TTLSecs]) -> {ok, {keys, CntSuccessfulPuts}} |
                                                   {error, badarg}
 * Delete
   * evict(Map, Key) -> ok
@@ -67,7 +67,7 @@ JC
   * evict_match(Map, Criteria = "Json.Path.Match=Value") -> ok
   * remove_items(Map, Keys) -> {ok, [{K, V}, ...]} for each {K, V} deleted.
 * Retrieve
-  * get(Map, Key) -> {ok, Value} | miss
+  * get(Map, Key) -> {ok, {value, Value}} | miss
   * get_all(Map, [K1, K2, ...]) -> {ok, {Found=[{K1,V1},...], Misses=[K2,...]}}
   * key_set(Map) -> {ok, [K1, K2, ...]} for each Key in the Map
   * values(Map) -> {ok, [V1, V2, ...]} for each Value in the Map

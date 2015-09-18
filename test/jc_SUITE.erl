@@ -270,12 +270,12 @@ put_simple_test(_Config) ->
     _ =[begin 
 	    V = K * 2 ,
 	    {ok, {key, K}} = bridge({put, Map, K, V}),
-	    {ok, V} = bridge({get, Map, K})
+	    {ok, {value, V}} = bridge({get, Map, K})
 	end || K <- lists:seq(1,100)],
     
     _ = [begin
 	     {ok, {key, W}} = bridge({put, W, W, W, 1}),
-	     {ok, W} = bridge({get, W, W}),
+	     {ok, {value, W}} = bridge({get, W, W}),
 	     {records, 1} = jc:map_size(W)
 	 end || W <- ?ALL_TYPES],
     
@@ -289,12 +289,12 @@ put_simple_test(_Config) ->
     _ =[begin 
 	    V = K * 2 ,
 	    {ok, {key, K}} = bridge({put_s, Map, K, V, 1}),
-	    {ok, V} = bridge({get, Map, K})
+	    {ok, {value, V}} = bridge({get, Map, K})
 	end || K <- lists:seq(1,100)],
     
     _ = [begin
 	     {ok, {key, W}} = bridge({put_s, W, W, W, 1, 1}),
-	     {ok, W} = bridge({get, W, W}),
+	     {ok, {value, W}} = bridge({get, W, W}),
 	     {records, 1} = jc:map_size(W)
 	 end || W <- ?ALL_TYPES],
     
@@ -314,12 +314,12 @@ put_seq_test(_Config) ->
     _ =[begin 
 	    V = K * 2 ,
 	    {ok, {key, K}} = bridge({put_s, Map, K, V, K}),
-	    {ok, V} = bridge({get, Map, K})
+	    {ok, {value, V}} = bridge({get, Map, K})
 	end || K <- lists:seq(1,100)],
     
     _ = [begin
 	     {ok, {key, W}} = bridge({put_s, W, W, W, 1, 1}),
-	     {ok, W} = bridge({get, W, W}),
+	     {ok, {value, W}} = bridge({get, W, W}),
 	     {records, 1} = jc:map_size(W)
 	 end || W <- ?ALL_TYPES],
     
@@ -351,7 +351,7 @@ put_eviction_test(_Config)->
     [#ttl{ttl_secs=3, timer_ref=TR}] = mnesia:dirty_read({ttl, RecRef}),
 
     timer:sleep(1500),
-    {ok, V} = bridge({get, M, K}),
+    {ok, {value, V}} = bridge({get, M, K}),
     [#ttl{ttl_secs=3, timer_ref=TR2}] = mnesia:dirty_read({ttl, RecRef}),
     true = (TR == TR2),
 
@@ -363,7 +363,7 @@ put_eviction_test(_Config)->
     bridge({put, bed, 1, 1, 2}),
     bridge({put, bed, 1, 1}),
     timer:sleep(3000),
-    {ok, 1} = bridge({get, bed, 1}).
+    {ok, {value, 1}} = bridge({get, bed, 1}).
 
 
 						% only good tuples get put, 
@@ -376,11 +376,11 @@ put_all_test(_Config)->
     Vs = [V || {_,V} <- KVs],
 
 
-    {ok, 100} = bridge({put_all, bed, [{bad, bad, bad, bad},{bad}|KVs]}),
+    {ok, {cnt, 100}} = bridge({put_all, bed, [{bad, bad, bad, bad},{bad}|KVs]}),
     {ok, {Hits, [missing]}} = bridge({get_all, bed, [missing|Ks]}),
     KVs = lists:reverse(Hits),
 
-    {ok, 100} = bridge({put_all, bed, KVs, 2}),
+    {ok, {cnt, 100}} = bridge({put_all, bed, KVs, 2}),
     {ok, Vs} = bridge({values, bed}),
     {ok, Ks} = bridge({key_set, bed}),
 
@@ -388,19 +388,19 @@ put_all_test(_Config)->
     {ok, {[], M}} = bridge({get_all, bed, Ks}),
     Ks = lists:reverse(M),
 
-    {ok, 0} = bridge({put_all, bed,[]}),
+    {ok, {cnt, 0}} = bridge({put_all, bed,[]}),
 
     jc:flush(),
     KVs2 = [{K, K*2} || K <- lists:seq(1,100)],
     Ks2 = [K || {K,_} <- KVs2],
 
 
-    {ok, 100} = bridge({put_all_s, bed, [{bad, bad, bad, bad},{bad}|KVs2], 100}),
+    {ok, {cnt, 100}} = bridge({put_all_s, bed, [{bad, bad, bad, bad},{bad}|KVs2], 100}),
     {ok, {Hits, [missing]}} = bridge({get_all, bed, [missing|Ks2]}),
     KVs2 = lists:reverse(Hits),
 
     jc_s:put(bed, 10, 10, 10),
-    {ok, 20} = bridge({get, bed, 10}),
+    {ok, {value, 20}} = bridge({get, bed, 10}),
 
     {error, out_of_seq} = bridge({put_all_s, bed, [{bad, bad, bad, bad},{bad}|KVs2], 1}),
     jc:flush(),
@@ -417,8 +417,8 @@ put_all_test(_Config)->
 % Ditto for evict_s if sequence is correct
 evict_simple_test(_Config)->
     KVs = [{K, K*2} || K <- lists:seq(1, 100)],
-    {ok, 100} = jc:put_all(bed, KVs),
-    {ok, 100} = jc:put_all(evs, KVs),
+    {ok, {cnt, 100}} = jc:put_all(bed, KVs),
+    {ok, {cnt, 100}} = jc:put_all(evs, KVs),
 
     [bridge({evict, bed, K}) || K <- lists:seq(1, 100, 2)],
 
@@ -433,8 +433,8 @@ evict_simple_test(_Config)->
 
     jc:flush(),
 
-    {ok, 100} = bridge({put_all_s, bed, KVs, 10}),
-    {ok, 100} = bridge({put_all_s, evs, KVs, 9}),
+    {ok, {cnt, 100}} = bridge({put_all_s, bed, KVs, 10}),
+    {ok, {cnt, 100}} = bridge({put_all_s, evs, KVs, 9}),
 
 
     [bridge({evict_s, bed, K, 1}) || K <- lists:seq(1, 100, 2)],
@@ -594,8 +594,8 @@ indexed_match_test(Config) ->
     {ok, [{file, V}]} = bridge({values_match, bed, "menu.value = true"}),
     ok = bridge({evict_match, bed, "menu.value=true"}),
     miss = bridge({get, bed, file}),
-    {ok, "not json"} = jc:get(bed, 1),
-    {ok, true} = jc:get(bed, 2),
+    {ok, {value, "not json"}} = jc:get(bed, 1),
+    {ok, {value, true}} = jc:get(bed, 2),
     ok = bridge({stop_indexing, bed, "menu.id"}),
     jc:put(bed, file, V),
     {ok, [{file, V}]} = bridge({values_match, bed, "menu.id = \"file\""}).
@@ -619,7 +619,7 @@ evict_match_test(_config) ->
     miss = jc:get(bed, file),
     {records, 1000} = jc:map_size(bed),
 
-    {ok, _V} = jc:get(bed, 22),
+    {ok, {value, _V}} = jc:get(bed, 22),
     ok = bridge({evict_match, bed, <<"  menu.id  =   22">>}),
     miss = jc:get(bed, 22),
     {records, 999} = jc:map_size(bed),
@@ -741,7 +741,7 @@ values_match_test(_config) ->
 
 % return all {k,v} that were removed
 remove_items_test(_config) ->
-    {ok,3} = jc:put_all(bed, [{1, one},{2, two},{3, three}]),
+    {ok,{cnt,3}} = jc:put_all(bed, [{1, one},{2, two},{3, three}]),
     {ok,[{1,one}]} = bridge({remove_items, bed, [1, 22]}),
     {ok, []} = bridge({remove_items, bed, [1, 22]}),
     {ok, [2,3]} = jc:key_set(bed),
@@ -749,7 +749,7 @@ remove_items_test(_config) ->
     {records, 0} = jc:map_size(bed), 
     jc:flush(),
 
-    {ok,3} = jc_s:put_all(bed, [{1, one},{2, two},{3, three}], 10),
+    {ok,{cnt,3}} = jc_s:put_all(bed, [{1, one},{2, two},{3, three}], 10),
     {ok,[{1,one}]} = bridge({remove_items_s, bed, [1, 22], 11}),
     {ok, []} = bridge({remove_items_s, bed, [1, 22], 12}),
     {ok, [2,3]} = jc:key_set(bed),
@@ -790,17 +790,17 @@ max_ttl_evict_test(_Config) ->
     ok = bridge({set_max_ttl, bed, 5}),
     jc:put(bed, short, 10),
     jc:put(evs, akey, 10),
-    {ok, 10} = jc:get(bed, short),
-    {ok, 10} = jc:get(evs, akey),
+    {ok, {value,10}} = jc:get(bed, short),
+    {ok, {value, 10}} = jc:get(evs, akey),
     timer:sleep(2000),
     jc:put(bed, long, 10),
     timer:sleep(4500),
     miss = jc:get(bed, short),
-    {ok, 10} = jc:get(evs, akey),
-    {ok, 10} = jc:get(bed, long),
+    {ok, {value, 10}} = jc:get(evs, akey),
+    {ok, {value, 10}} = jc:get(bed, long),
     timer:sleep(2000),
     miss = jc:get(bed, long),
-    {ok, 10} = jc:get(evs, akey),
+    {ok, {value, 10}} = jc:get(evs, akey),
     jc_eviction_manager ! {max_ttl_evict, 120},
     true.
     
@@ -811,9 +811,9 @@ max_ttl_evict_test(_Config) ->
 % bad parameter should still return okay
 delete_map_since_test(_config)->
     {ok, {key, a}} = jc:put(bed, a, "A"),
-    {ok, "A"} = jc:get(bed, a),
+    {ok, {value,"A"}} = jc:get(bed, a),
     ok = bridge({evict_map_since, bed, 2}),
-    {ok, "A"} = jc:get(bed, a),
+    {ok, {value, "A"}} = jc:get(bed, a),
     timer:sleep(2000),
     ok = bridge({evict_map_since, bed, 2}),
     miss = jc:get(bed, a),
@@ -927,6 +927,7 @@ topic_subscribe_test(_Config)->
 % stopping jc or killing the node should cause a node_down
 cluster_test(_Config) ->
     jc:stop(),
+    ranch:stop(),
     mnesia:stop(),
     erlang:open_port({spawn, "erl -name jc2@127.0.0.1 -config ../../lib/jc/test/app.config -eval 'application:ensure_all_started(jc)' -pa ../../lib/*/ebin"},[out]),
     timer:sleep(1000),
