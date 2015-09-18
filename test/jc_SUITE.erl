@@ -331,7 +331,7 @@ put_seq_test(_Config) ->
     {ok, {key, 10}} = bridge({put_s, Map, 10, "20 2", 21}),
     {error, out_of_seq} = bridge({put_s, Map, 10, 15, 15}),
     timer:sleep(300),
-    {ok, "20 2"} = bridge({get, Map, 10}),
+    {ok, {value, "20 2"}} = bridge({get, Map, 10}),
 
     {error, badarg} = bridge({put_s, amap, k, v, -1}),
     {error, badarg} = bridge({put_s, amap, k, v, 200, -2}).
@@ -405,7 +405,7 @@ put_all_test(_Config)->
     {error, out_of_seq} = bridge({put_all_s, bed, [{bad, bad, bad, bad},{bad}|KVs2], 1}),
     jc:flush(),
     
-    {ok, 100} = bridge({put_all_s, bed, [{bad, bad, bad, bad},{bad}|KVs2], 3, 100}),
+    {ok, {cnt, 100}} = bridge({put_all_s, bed, [{bad, bad, bad, bad},{bad}|KVs2], 3, 100}),
     bridge({put_all_s, bed, [{bad, bad, bad, bad},{bad}|KVs2], 1, 99}),
     timer:sleep(2000),
     {records, 100} = jc:map_size(bed),
@@ -927,7 +927,7 @@ topic_subscribe_test(_Config)->
 % stopping jc or killing the node should cause a node_down
 cluster_test(_Config) ->
     jc:stop(),
-    ranch:stop(),
+    application:stop(ranch),
     mnesia:stop(),
     erlang:open_port({spawn, "erl -name jc2@127.0.0.1 -config ../../lib/jc/test/app.config -eval 'application:ensure_all_started(jc)' -pa ../../lib/*/ebin"},[out]),
     timer:sleep(1000),
