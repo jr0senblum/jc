@@ -113,7 +113,11 @@ edn_(T) ->
 edn_term(nil) -> ["nil"];
 
 edn_term({keyword,nil}) -> [":nil"];
+
 edn_term({symbol, S}) -> atom_to_list(S);
+
+
+
 
 edn_term({'char', C}) ->
     ["\\", C];
@@ -161,6 +165,10 @@ edn_term(true) ->
 edn_term(false) ->
     "false";
 edn_term(Term) when is_atom(Term) ->
-    [":", atom_to_list(Term)].
+    [":", atom_to_list(Term)];
+
+edn_term(_T) ->
+    throw({error, bad_edn}).
+
 
     
