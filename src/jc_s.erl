@@ -54,19 +54,19 @@
 %% -----------------------------------------------------------------------------
 %% @doc Return the sequence number associated with the given map.
 %%
--spec sequence(map()) -> {ok, [{atom, non_neg_integer()}]}.
+-spec sequence(map()) -> {sequence, [{atom, non_neg_integer()}]}.
 
 sequence(Map) ->
-    {ok, sequence_for(Map)}.
+    {sequence, sequence_for(Map)}.
 
 
 %% -----------------------------------------------------------------------------
 %% @doc Return a sorted list of {map, sequence numbers} for each map.
 %%
--spec sequence() -> {ok, [{atom, non_neg_integer()}]}.
+-spec sequence() -> {sequences, [{atom, non_neg_integer()}]}.
 
 sequence() ->
-    {ok, sequence_for(all)}.
+    {sequences, sequence_for(all)}.
 
     
 

@@ -80,7 +80,7 @@ up_nodes()->
 %% -----------------------------------------------------------------------------
 %% @doc Return vairous stats information. Currently size and uptime information.
 %% 
--spec stats(size | up) -> {size, [{TableNm::atom(), 
+-spec stats(size | up) -> {sizes, [{TableNm::atom(), 
 				   {records, RecCnt::non_neg_integer()},
 				   {bytes, Words::non_neg_integer()}}]} |
 			  {uptime, term()} |
@@ -91,7 +91,7 @@ stats(size) ->
 	  {records, mnesia:table_info(T, size)}, 
 	  {bytes, mnesia:table_info(T, memory) * erlang:system_info(wordsize)}}
 	 || T <-mnesia:system_info(tables)],
-    {size, Data};
+    {sizes, Data};
 
 stats(up) ->
     case mnesia:dirty_read(stats, 'jc_store_up_time') of

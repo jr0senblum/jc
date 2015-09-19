@@ -77,7 +77,8 @@ init_per_suite(Config) ->
     [{maps, [bed, evsRequest]} | Config].
 
 init_per_testcase(_, Config) ->
-    [bridge({clear, Map}) || Map <- bridge({maps})],
+    {maps, Maps} = bridge({maps}),
+    [bridge({clear, Map}) || Map <- Maps],
     Config.
 
 end_per_testcase(_, Config) ->
@@ -207,7 +208,7 @@ meta_data_test(_Config) ->
     {error, badarg} = jc_store:stats(wrong),
 
 
-    {nodes, {active, [Active]}, {configured, C}} = bridge({cache_nodes}),
+    {ok, {active, [Active]}, {configured, C}} = bridge({cache_nodes}),
     Configured = application:get_env(jc, cache_nodes, []),
     true = (Active == node()),
     true = (lists:sort(Configured) == lists:sort(C)).
@@ -218,21 +219,21 @@ meta_data_test(_Config) ->
 % put_s should create map if not there
 % deleting last item from map should remove it from use
 maps_test(_Config) ->
-    [] = bridge({maps}),
+    {maps, []} = bridge({maps}),
     {ok, {key, 1}} = bridge({put, bed, 1, 1}),
     {ok, {key, 1}} = bridge({put, evs, 1, 1}),
     {ok, {key, 2}} = bridge({put, evs, 2, 2}),
     {ok, {key, 2}} = bridge({put_s, trx, 2, 2, 22}),
-    [bed, evs, trx] = bridge({maps}),
+    {maps, [bed, evs, trx]} = bridge({maps}),
     bridge({evict, bed, 1}),
-    [evs, trx] = bridge({maps}),
+    {maps, [evs, trx]} = bridge({maps}),
     bridge({evict, evs, 1}),
     bridge({evict, evs, 2}),
-    [trx] = bridge({maps}),
+    {maps, [trx]} = bridge({maps}),
     bridge({evict_s, trx, 1, 1}),
-    [trx] = bridge({maps}),
+    {maps, [trx]} = bridge({maps}),
     bridge({evict_s, trx, 2, 33}),
-    [] = bridge({maps}).
+    {maps, []} = bridge({maps}).
 
 % map_size returns number of elements in map
 % putting incr number of elements

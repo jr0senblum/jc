@@ -82,11 +82,11 @@ JC
 * Meta
   * cache_nodes() -> {nodes, {active, [Node1,... ]}, 
                              {configured, [Node1,... ]}}
-  * cache_size() -> {size, [{TableName, RecordCnt, Words}],...}
+  * cache_size() -> {sizes, [{TableName, RecordCnt, Words}],...}
   * map_size(Map) -> {records, Count}
-  * maps() -> [Map1, Map2,...]
+  * maps() -> {maps, [Map1, Map2,...]}
   * up() -> {uptime, [{up_at, String},{now, String},
-                      {up_time {D, {H, M, S}}}]
+                      {up_time, {D, {H, M, S}}}]
 
 
 ### Searializable Cache Functions (jc_s)
@@ -102,14 +102,14 @@ Identical to the standard, CRUD functions above, except that
   * put_all(Map, [{K,V},{K,V},...], [TTLSecs], Seq)
   * remove_items(Map, Keys, Seq)
 * Meta Functions
-  * sequence() -> {ok, [{Map, Highest_Number},... ]}
-  * sequence(Map) -> {ok, Hightest_Number} | {ok, not_exist}
+  * sequence() -> {sequences, [{Map, Highest_Number},... ]}
+  * sequence(Map) -> {sequence, Hightest_Number} | {ok, not_exist}
 
 
 
 ###Eviction Manager Functions (jc_eviction_manager)
 * set_max_ttl(Map, Secs) -> ok | {error, badarg}
-* get_max_ttls() -> [{Map, Secs}, ...]
+* get_max_ttls() -> {ttls, [{Map, Secs}, ...]}
 
 
 ###Pub/Sub Functions (jc_psub)

@@ -70,10 +70,10 @@ stop()->
 %% -----------------------------------------------------------------------------
 %% @doc Return a sorted list of all maps currently in the cache. 
 %% 
--spec maps() -> [map_name()].
+-spec maps() -> [{maps, map_name()}].
 
 maps() -> 
-    trans_execute(fun() -> jc_store:maps() end).
+    {maps, trans_execute(fun() -> jc_store:maps() end)}.
 			  
 
 %% -----------------------------------------------------------------------------
@@ -91,11 +91,12 @@ map_size(Map)->
 %% used by j_cache. Notice that 'cached' {@link key(). Key} 
 %% {@link value(). Value} data are stored in the key_to_value table.
 %%
--spec cache_size() -> {size, [{TableNm::atom(), {records, non_neg_integer()},
-			                        {bytes, non_neg_integer()}}]}.
+-spec cache_size() -> {sizes, [{TableNm::atom(), {records, non_neg_integer()},
+			     {bytes, non_neg_integer()}}]}.
 
 cache_size()->
     jc_store:stats(size).
+
 
 
 %% -----------------------------------------------------------------------------

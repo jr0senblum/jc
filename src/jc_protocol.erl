@@ -9,29 +9,20 @@
 %%% The CONNECT frame:
 %%% CONNECT\r\n
 %%% VERSION:1.0\r\n
-%%% CRLF:TRUE|FALSE\r\n
-%%% USERNAME:username\r\n
-%%% PASSWORD:password\r\n
 %%% 
-%%% CRLF MUST be TRUE if COMMAND frames terminate with \r\n. Otherwise,
-%%% Otherwise, CRLF MUST be FALSE and lines MUST NOT be terminated with \r\n. 
 %%% Server responds to CONNECT frames with BINARY STRINGS.
 %%%
-%%% [11]VERSION:1.0
+%%% VERSION:1.0
 %%% or
-%%% [5]error and the socket will be closed.
+%%% error and the socket will be closed.
 %%%
-%%% COMMAND frames consist of the byte_size enclosed in brackets
-%%% followed by the command. If CRLF was set to TRUE when connecting than
-%%% COMMAND lines MUST be terminated with \r\n; otherwise they MUST NOT.
-%%% The supplied byte_size does not include the [byte_size] portion of the frame
-%%% nor does it include any terminating \r\n characters.
+%%% COMMAND frames consist of an 8 bytes size followed by the command.
 %%%
 %%% For example:
 %%% [15jc:put(bed,1,1)
 %%%
 %%% Closing a CONNECTION is a COMMAND frame as follows
-%%% [5]CLOSE
+%%% CLOSE
 %%%
 %%% RESPONSE frames are identical to COMMAND frames, but NEVER end with \r\n.
 %%% Like all other lines, RESPONSE lines are BINARY STRINGS
@@ -68,13 +59,11 @@
 -record(jc_pro_state, {socket, 
 			    transport           :: 'jc_protocol', 
 			    connected = false   :: boolean(),
-			    have_size = false   :: boolean(),
-			    command = undefined :: term(),
+			    command = undefined :: undefined |
+						   version |
+						   binary(),
 			    size = undefined    :: undefined | 
 						   non_neg_integer(),
-			    crlf = undefined    :: boolean() | undefined,
-			    username = <<"">>   :: binary(),
-			    password = <<"">>   :: binary(),
 			    version = <<"1.0">> :: binary()}).
 
 
@@ -122,11 +111,10 @@ init(Ref, S, T, _Opts = [Port]) ->
 
     gen_server:enter_loop(?MODULE, [],
 			  #jc_pro_state{socket = S, 
-					     transport = T,
-					     connected = false,
-					     have_size = false,					     
-					     size = undefined,
-					     command = undefined},
+					transport = T,
+					connected = false,
+					size = undefined,
+					command = undefined},
 			  ?TIMEOUT).
 
 %% -----------------------------------------------------------------------------
@@ -136,8 +124,8 @@ init(Ref, S, T, _Opts = [Port]) ->
 -spec handle_info(any(),#jc_pro_state{}) -> {noreply,#jc_pro_state{}}.
 
 handle_info({tcp, S, Data}, State = #jc_pro_state{socket=S, transport=T})->
-    T:setopts(S, [{active, once}]),
     NewState = protocol(Data, State),
+    T:setopts(S, [{active, once}]),
     {noreply, NewState, ?TIMEOUT};
 
 handle_info({tcp_closed, _Socket}, State) ->
@@ -206,59 +194,51 @@ protocol(B, #jc_pro_state{transport = T, socket = S} = State) ->
     try
 	proto(B, State)
     catch
-	throw:{fatal, _F} ->
-	    T:send(S, marshal({error, protocol})),
+	throw:{fatal, F} ->
+	    T:send(S, marshal({error, {protocol, F}})),
 	    self() ! {tcp_closed, S};
-	_:_ ->
-	    T:send(S, marshal({error, protocol})),
+	_:E ->
+	    T:send(S, marshal({error, E})),
 	    reset_state(State)
     end.
 	
 
-%% Not CONNECTED, assume we are in a CONNECT frame, looking for VERSION, CRLF
-%% USERNAME and PASSWORD segments.
+%% Not CONNECTED, assume we are in a CONNECT frame, looking for VERSION
+%% segment.
 %%
-proto(B, #jc_pro_state{command=C,connected=false,transport=T,socket=S}=State) ->
-    NewState = case C of 
-		   X when X == undefined; X == version; X == crlf ->
-		       connect(B, State);
-		   username ->
-		       username(B, State);
-		   password ->
-		       password(B, State)
-	       end,
+proto(B, #jc_pro_state{connected=false, transport = T, socket = S} = State) ->
+    NewState = connect(B, State),
+
     case NewState#jc_pro_state.connected of
 	true ->
 	    Version = NewState#jc_pro_state.version,
-	    lager:debug("~p (~p): connected ~p",
-			[?MODULE, self(), {Version,
-					   #jc_pro_state.username}]),
+	    lager:debug("~p (~p): connected with version: ~p",
+			[?MODULE, self(), {Version}]),
 	    T:send(S, marshal({version, <<"1.0">>}));
 	false ->
 	    ok
     end,
     NewState;
 
-%% CONNECTED, parsing a COMMAND frame - look for the size of the COMMAND.
-proto(B,#jc_pro_state{connected=true,have_size=false,crlf=F}=State) ->
-    Stripped = F(B),
-    <<Size:8, C/binary>> = Stripped,
-    get_command(C, <<>>, State#jc_pro_state{have_size=true, size=Size});
 
-
-%% Parsing COMMAND frame, size has been retrieved, accumulate the command.
-proto(B,#jc_pro_state{connected=true,have_size=true,command=Com,crlf=F}=State) ->
-    Stripped = F(B),
-    get_command(Stripped, Com, State).
-
-
-
-
-% Walk the binary accumulating Size characters from the COMMAND frame, when no 
-% more characters (size = 0), execute the command.
+%% CONNECTED, parsing a COMMAND frame. If the socket grabbed more than one 
+%% command, keep the left-over portion and use it as the starting portion
+%% when more date comes.
 %
-get_command(_B, Acc, #jc_pro_state{size=0} = State) ->
-    parse(State#jc_pro_state{command = Acc});
+proto(B, #jc_pro_state{command = <<>>}=State) ->
+    <<Size:8, C/binary>> = B,
+    get_command(C, <<>>, State#jc_pro_state{size=Size});
+
+proto(B, #jc_pro_state{command=Com}=State) ->
+    get_command(B, Com, State).
+
+
+
+% Walk the binary accumulating characters until we have grabbed the adveritesed
+% amount. Execute the command, take care of any bytes left over.
+%
+get_command(B, Acc, #jc_pro_state{size=0} = State) ->
+    parse(B, State#jc_pro_state{command = Acc});
 
 get_command(<<>>, Acc, State) ->
     State#jc_pro_state{command=Acc};
@@ -267,54 +247,44 @@ get_command(<<C:1/binary, B/binary>>, Acc, #jc_pro_state{size=Size} = State) whe
     get_command(B, <<Acc/binary, C/binary>>, State#jc_pro_state{size = Size-1}).
 
 
-% Execute the COMMAND.
-parse(#jc_pro_state{transport = T, socket = S, command = Com} = State) ->
-    lager:debug("~p (~p): executing command: ~p",  
-		[?MODULE, self(), Com]),
+% Parse and execute the COMMAND.
+parse(B, #jc_pro_state{transport = T, socket = S, command = Com} = State) ->
+    lager:debug("~p (~p): executing command: ~p",  [?MODULE, self(), Com]),
 
     Edn = binary_to_list(Com),
     [M, F, A] = erldn:to_erlang(element(2, erldn:parse_str(Edn))),
-    R = apply(M, F, A),
-    T:send(S, marshal(R)),
-    reset_state(State).
+    NewA = case F of
+	       _ when F == map_subscribe;
+		      F == map_unsubscribe;
+		      F == topic_subscribe;
+		      F == topic_unsubscribe ->
+		   [self()| A];
+	       _ ->
+		   A
+	   end,
 
+    R = apply(M, F, NewA),
+    T:send(S, marshal(R)),
+    case B of
+	<<>> ->
+	    reset_state(State);
+	_ ->
+	    <<Size:8, B2/binary>> = B,
+	    get_command(B2, <<>>, State#jc_pro_state{command = <<>>, size=Size})
+    end.
 
 
 
 % CONNECT FRAME parsing
 % 
-connect(<<"CONNECT\r\n", B/binary>>, S=#jc_pro_state{command = undefined}) ->
+connect(<<"VERSION:1.0\r\n", _B/binary>>, S=#jc_pro_state{command=version}) ->
+    reset_state(S);
+connect(<<"CONNECT\r\n", B/binary>>, S) ->
     connect(B, S#jc_pro_state{command=version});
-connect(<<"VERSION:1.0\r\n", B/binary>>, S=#jc_pro_state{command=version}) ->
-    connect(B, S#jc_pro_state{version = <<"1.0">>, command=crlf});
-connect(<<"CRLF:TRUE\r\n", B/binary>>, S=#jc_pro_state{command=crlf}) ->
-    connect(B, S#jc_pro_state{command=username, crlf=fun(I) -> crlf(I) end});
-connect(<<"CRLF:FALSE\r\n", B/binary>>, S=#jc_pro_state{command=crlf}) ->
-    username(B, S#jc_pro_state{command=username, crlf=fun(I) -> I end});
 connect(<<>>, State) ->
     State;
 connect(B, _State) ->
     throw({fatal, {bad_connect_frame, B}}).
-
-
-username(<<"USERNAME:", B/binary>>, S) ->
-    username(B, S);
-username(<<"\r\n", B/binary>>, S)->
-    password(B, S#jc_pro_state{command = password});
-username(<<C:1/binary, B/binary>>, #jc_pro_state{username = U} = S)-> 
-    username(B, S#jc_pro_state{username = <<U/binary, C:1/binary>>});
-username(<<>>, S) ->
-    S.
-
-
-password(<<"PASSWORD:", B/binary>>, S) ->
-    password(B, S);
-password(<<"\r\n", _B/binary>>, S)->
-     S#jc_pro_state{connected = true};
-password(<<C:1/binary,B/binary>>, #jc_pro_state{password = P} = S)-> 
-    password(B, S#jc_pro_state{password = <<P/binary, C:1/binary>>});
-password(<<>>, State) ->
-    State.
 
 
 
@@ -323,28 +293,11 @@ password(<<>>, State) ->
 % ==============================================================================
 
 
-%% Strip off [carriage-return]lf
-crlf(<<"\r\n">>) ->
-    <<>>;
-crlf(<<"\n">>) ->
-    <<>>;
-crlf(<<>>) ->
-    <<>>;
-crlf(B) when erlang:binary_part(B, byte_size(B) - 2, 2) == <<"\r\n">> ->
-    binary:part(B, {0, byte_size(B) - 2});
-
-crlf(B) when erlang:binary_part(B, byte_size(B) - 1, 1) == <<"\n">> ->
-    binary:part(B, {0, byte_size(B) - 1});
-crlf(B) ->
-    B.
-
-
-
 %% After a COMMAND frame, reset the CONNECTION (state) for next COMMAND frame.
 reset_state(S) ->
-    S#jc_pro_state{have_size = false,
-			command = undefined,
-			size = undefined}.
+    S#jc_pro_state{command = <<>>,
+		   size = undefined,
+		   connected=true}.
 
 
 % Messsage -> [Size]Message

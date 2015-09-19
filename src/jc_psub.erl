@@ -596,7 +596,8 @@ unsubscribe_all(Pid) when is_pid(Pid) ->
 broadcast_topic_event(Topic, Value)->
     lager:debug("~p: broadcasting topic event.", [?SERVER]),
     Variations = topic_variations(Topic, Value),
-    [broadcast_change(Variation, {Topic, Value}) || Variation <- Variations].
+    [broadcast_change(Variation, {topic_event,{Topic, Value}}) 
+     || Variation <- Variations].
 
 topic_variations(Topic, Value)->
     [#topic_sub{topic = Topic, value = Value},
@@ -606,7 +607,7 @@ topic_variations(Topic, Value)->
 broadcast_map_event(Event, Payload)->
     lager:debug("~p: broadcasting map event.", [?SERVER]),
     Variations = map_variations(Event),
-    [broadcast_change(Variation, Payload) || Variation <- Variations].
+    [broadcast_change(Variation, {map_event, Payload}) || Variation <- Variations].
 
 
 map_variations({Map, Key, Operation}) ->
