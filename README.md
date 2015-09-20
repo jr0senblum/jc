@@ -3,7 +3,7 @@ JC
 
 ##Erlang, Distributable, In-Memory Cache
 
-### Pub/Sub, Serialization Assist, JSON-Query Support and Simple Edn-based Binary Protocol for Interoperability.
+### Pub/Sub; JSON-Query; Consistency Assist; and Simple, Edn-based, Binary Protocol for Interoperability.
 
 
 [![Build Status](https://travis-ci.org/jr0senblum/jc.svg)](https://travis-ci.org/jr0senblum/jc)
@@ -21,21 +21,21 @@ JC
     match/x and remove/x operations. Operations whose sequence
     number is lower than the current, per-map max are disallowed 
     thereby ensuring, for example, that stale puts do not 
-    overwrite fresher ones due to the fresh one beating the stale
-    one to the cache.
+    overwrite newer ones due to the newer one beating the stale
+    ones to the cache.
 *  JSON Query Support
   * Query by JSON: When Values are JSON, evict_match/2,
-    evict_all_match/1 and values_match/2 can search or evict
+    evict_all_match/1 and values_match/2 search or evict
     keys whose JSON value, at a location specificed by a java-style, dot-path
-    string equals the specified value. That is,
+    string, equals the specified value. That is,
     jc:values_match(bed, "id.type=3") would return all values for Keys in the
-    bed Map whose JSON value was an object with an "id":3 in the top-level.
+    bed 'Map' whose JSON value was an object with an "id":3 in the top-level.
   * Ad-hoc, Index Support: In order to support faster
     operations, (2-3 orders of magnitude), each map can have up to four,
     dot-path, strings configured for which jc will provide 
     index support.
-  * Auto Index Recognition - Ability to detect frequently used
-    JSON querries and automatically start indexing on them.
+  * Auto Index Recognition - Frequently used JSON querries will be automatically
+    detected and indexing initiated.
 * User Controlled Eviction
   * Map-level TTL: A job runs at configured intervals and removes
   items whose create-date is older than a map-specific, configured 
@@ -49,9 +49,10 @@ JC
   any key and for write, delete or either operations
   * Clients can create and subscribe to arbitrary 'topic's and 
   broadcast arbitrary messages under those topic names
-* Interopability: Edn-based binary protocol over TCP
-  * Edn strings can be used over TCP to communicate with cache functionality.
-    Edn strings -> binary -> TCP <- binary <- Edn strings  
+  * Clients can subscribe to node-up and node-down events 
+* Interopability: Edn-based, binary protocol over TCP
+  * Edn strings can be used over TCP to interoperate with the cache eco-system.
+    UTF-8 Edn strings -> binary -> TCP --- TCP <- binary <- UTF-8 Edn strings  
 * Bridge process that accepts messages from a client indicating
   cache operations, executes the cache operations and returns the
   results to the client. This has been used with JInterface to 
@@ -94,13 +95,12 @@ JC
                       {up_time, {D, {H, M, S}}}]
 
 
-### Searializable Cache Functions (jc_s)
+### Consistacny Supported Functions (jc_s)
 Identical to the Create and Evict family of functions above, except:
-* Additional sequence parameter which is expected to be a monotonically
-  increcing integer (with respect to a given Map) which is used to disalow
+* An additional sequence parameter, which is expected to be a monotonically
+  incresing integer (with respect to a given Map), is used to disalow
   "out of sequence" operations
-* Functions return {error, out_of_seq} if one attemts an out of sequence 
-  operation
+* Functions return {error, out_of_seq} if out of sequence operation is attempted
   * evict(Map, Key, Seq)
   * evict_all_match(Criteria = "Json.Path.Match=Value", Seq) 
   * evict_match(Map, Criteria = "Json.Path.Match=Value", Seq)
@@ -122,15 +122,19 @@ Identical to the Create and Evict family of functions above, except:
 * map_subscribe(Pid, Map, Key|any, write|delete|any) -> ok |
                                                    {error, badarg}
   * client will receive
-    * {map, key, delete}, or
-    * {map, key, write, value}
+    * {map_event, {Map, Key, delete}}, or
+    * {map_event, {Map, key, write, Value}
 * map_unsubscribe(Pid, Map, Key|any, write|delete|any) -> ok |
                                                    {error, badarg}
 * topic_subscribe(Pid, Topic, Value) -> ok | {error, badarg}
-  * client will receive {Topic, Value}
+  * client will receive {topic_event, {Topic, Value}}
 * topic_unsubscribe(Pid, Topic, Value) -> ok | {error, badarg}
 * topic_event(Topic, Value) -> ok. <-- Broadcasts Value to all
   subscribers of Topic
+* topic_subscribe(Pid, jc_node_events, any) subscribtes the user
+  to node up and node down events:
+  `{jc_node_events, {nodedown, DownedNode, [ActiveNodes],[ConfiguredNodes]}}`
+  `{jc_node_events, {nodeup, UppedNode, [ActiveNodes],[ConfiguredNodes]}}`
 
 
 ###Indexing Functions (jc_store)
@@ -171,7 +175,7 @@ Identical to the Create and Evict family of functions above, except:
 The protocol utilizes Edn, a string-based data notation -- see https://github.com/edn-format/edn. UTF-8 Edn strings, binary encoded over TCP.
 
 The protocol defines two message types CONNECT and COMMAND which are 
-binary strings consisting of an 8-byte size prefix followed by the 
+binary strings consisting of an 8-byte, size prefix followed by the 
 CONNECT or COMMAND details.
 
 Responses are also binary strings with an 8-byte size prefix.
@@ -187,17 +191,17 @@ Size is 25, so the CONNECT message is:
       114,115,105,111,110,32,49,46,48,125,41>>
 
 The server will respond to a CONNECT command with either an error or
-the encode version of {:version 1.0}
+the encoded version of {:version 1.0}
 
     <<13:8, {:version 1.0}/binary>> = 
     <<13,123,118,101,114,115,105,111,110,32,49,46,48,125>>
  
-COMMAND messages consist of an 8 bytes prefix  followed by the command.
+COMMAND messages consist of an 8-byte prefix followed by the command.
 
-NOTICE THAT KEYWORDS IN EDN will be convereted to atoms for erlang. Thus,
-Module and Function names must be Edn keywords. The form of a command
-message must be an Edn list with keywords specifying the desired Module
-and function, as in: (:module, :fn (args))
+NOTICE THAT KEYWORDS IN EDN will be convereted to Erlang atoms. Thus,
+Module and Function names (as with all atoms) must be Edn keywords. The form 
+of a COMMAND message must be an Edn list with keywords specifying the desired 
+Module and Function followed by a list of arguments, as in: (:module, :fn (args))
 
     (:jc :put (:evs 1 "a string value"))
 
@@ -211,7 +215,7 @@ A client session might look as follows
 
 Edn commands map directly to cache functions with the exception of the 
 jc_psub subscription functions which do NOT need a self() parameter since
-the per-session, tcp listener is the process which subscribes. So:
+the per-session, TCP listener is the process which subscribes. So:
 
     client:send("(:jc_psub :map_subscribe (:evs :any :any))").
     ===> ok
