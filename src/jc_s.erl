@@ -260,7 +260,9 @@ do_evict_match(Map, Criteria) ->
 evict_all_match(Criteria, Seq) when ?VALID(Seq) ->
     lager:debug("~p: evict_all_match with ~p and seq ~p:.", 
 		[?MODULE, Criteria, Seq]),
-    _ = [evict_match(M, Criteria, Seq) || M <- jc:maps()],
+
+    {maps, Maps} = jc:maps(),
+    _ = [evict_match(M, Criteria, Seq) || M <- Maps],
     ok;
 
 evict_all_match(_C, _S) ->
@@ -346,7 +348,7 @@ sequence_for(all) ->
 sequence_for(Map) ->
     case mnesia:dirty_read({seq, Map}) of
 	[] -> 
-	    not_exist;
+	    [];
 	[#seq{seq_no = No}] ->
 	    No
     end.

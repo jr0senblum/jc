@@ -249,7 +249,8 @@ evict_match(Map, Criteria) ->
 
 evict_all_match(Criteria) ->
     lager:debug("~p: evict_all_match ~p.", [?MODULE, Criteria]),
-    _ = [evict_match(M, Criteria) || M <- maps()],
+    {maps, Maps} = maps(),
+    _ = [evict_match(M, Criteria) || M <- Maps],
     ok.
 
 

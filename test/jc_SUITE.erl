@@ -49,8 +49,8 @@
 
 
 all() ->
-    [ sysconfig_test,
-     meta_data_test, auto_analyzer_test,
+    [ sysconfig_test,auto_analyzer_test,
+     meta_data_test, 
      maps_test, map_size_test,
      put_simple_test, put_seq_test, put_eviction_test, put_all_test,
      evict_simple_test, evict_match_test, evict_match_s_test, values_match_test,
@@ -131,7 +131,7 @@ auto_analyzer_test(_Confi) ->
 % are deleted on a jc:flush
 % are not removed by evicting individual 
 seq_test(_Config) ->
-    {ok,[]} = bridge({sequence}),
+    {sequences,[]} = bridge({sequence}),
     bridge({put, a,1,1}),
     bridge({put_s, f,1,1,1}),
     bridge({put_s, e,1,1,1}),
@@ -140,13 +140,13 @@ seq_test(_Config) ->
     bridge({put_s, z,1,10,1}),
     bridge({put_s, d,1,11,10}),
     bridge({put_s, aa,1,1,1}),
-    {ok,[{aa,1},{d,11},{e,1},{f,1},{z,10}]} = bridge({sequence}),
+    {sequences,[{aa,1},{d,11},{e,1},{f,1},{z,10}]} = bridge({sequence}),
 
-    {ok, 11} = bridge({sequence, d}),
-    {ok, 1} = bridge({sequence, f}),
-    {ok, not_exist} = bridge({sequence, wrong}),
+    {sequence, 11} = bridge({sequence, d}),
+    {sequence, 1} = bridge({sequence, f}),
+    {sequence, []} = bridge({sequence, wrong}),
     jc:flush(),
-    {ok,[]} = bridge({sequence}).
+    {sequences,[]} = bridge({sequence}).
 
 
 % max_ttls should be pulled from sys.config
@@ -154,11 +154,11 @@ seq_test(_Config) ->
 % indexes should be pulled from sys.config
 % when you stop indexing they should disappear
 sysconfig_test(_Confi) ->
-    [{testmap, 100}] = jc_eviction_manager:get_max_ttls(),
+    {ttls, [{testmap, 100}]} = jc_eviction_manager:get_max_ttls(),
     ok = jc_eviction_manager:set_max_ttl(testmap, 50),
-    [{testmap, 50}] = jc_eviction_manager:get_max_ttls(),
+    {ttls, [{testmap, 50}]} = jc_eviction_manager:get_max_ttls(),
     ok = jc_eviction_manager:set_max_ttl(testmap, 0),
-    [] = jc_eviction_manager:get_max_ttls(),
+    {ttls, []} = jc_eviction_manager:get_max_ttls(),
     {error, badarg} = jc_eviction_manager:set_max_ttl(testmap, -100),
     {error, badarg} = jc_eviction_manager:set_max_ttl(testmap, c),
 
@@ -190,9 +190,9 @@ meta_data_test(_Config) ->
     NowString = string:left(httpd_util:rfc1123_date(Now), 16),
     NowString = string:left(Up, 16),
     NowString = string:left(NowIs, 16),
-    true = (Secs < 5),
+    true = (Secs < 60),
 
-    {size, T} = bridge({cache_size}),
+    {sizes, T} = bridge({cache_size}),
     
     [{auto_index,{records,0},{bytes,_}},
      {key_to_value,{records,0},{bytes,_}},
@@ -208,7 +208,7 @@ meta_data_test(_Config) ->
     {error, badarg} = jc_store:stats(wrong),
 
 
-    {ok, {active, [Active]}, {configured, C}} = bridge({cache_nodes}),
+    {nodes, {active, [Active]}, {configured, C}} = bridge({cache_nodes}),
     Configured = application:get_env(jc, cache_nodes, []),
     true = (Active == node()),
     true = (lists:sort(Configured) == lists:sort(C)).
@@ -775,14 +775,14 @@ clear_test(_config) ->
 % adding a map max_ttl that exists overwirtes it
 % adding a bad map max_ttl returns an error but doesn't change anything
 max_ttl_test(_Config) ->
-    [] = bridge({get_max_ttls}),
+    {ttls, []} = bridge({get_max_ttls}),
     ok = bridge({set_max_ttl, m, 10}),
-    [{m, 10}] = bridge({get_max_ttls}),
+    {ttls, [{m, 10}]} = bridge({get_max_ttls}),
     ok = bridge({set_max_ttl, m, 20}),
     {error, badarg} = bridge({set_max_ttl, m, a}),
-    [{m, 20}] = bridge({get_max_ttls}),
+    {ttls, [{m, 20}]} = bridge({get_max_ttls}),
     ok = bridge({set_max_ttl, m, 0}),
-    [] = bridge({get_max_ttls}).
+    {ttls, []} = bridge({get_max_ttls}).
 
 
 % map ttl removes only appropriate items
@@ -843,18 +843,18 @@ map_subscribe_test(_Config) ->
     jc_bridge ! {self(), {put, bed, otherkey, 2}}, 
 
     true = receive
-	       {bed, 1, 1} ->
+	       {map_event, {bed, 1, 1}} ->
 		   false;
-	       {bed, key, delete} ->
+	       {map_event, {bed, key, delete}} ->
 		   false;
-	       {bed, otherkey, _, _} ->
+	       {map_event, {bed, otherkey, _, _}} ->
 		   false;
-	       {bed, key, write, 1} ->
+	       {map_event, {bed, key, write, 1}} ->
 		   true
 	   end,
 
     jc_bridge ! {self(), {put, bed, key, 2}}, 
-    true = receive {bed, key, write, 2} -> true after 100 -> false end,
+    true = receive {map_event, {bed, key, write, 2}} -> true after 100 -> false end,
 
     jc_bridge ! {self(), {map_unsubscribe, bed, key, write}}, 
     timer:sleep(200),
@@ -896,18 +896,18 @@ map_subscribe_test(_Config) ->
     jc:put(bed, key, 2),     % put causes evict of previous value
     jc:put(bed, key, 3),   
     true = receive
-	       {bed, otherkey, delete} ->
+	       {map_event, {bed, otherkey, delete}} ->
 		   false;
-	       {bed, key, delete} ->
-		   receive {bed, key, delete} -> true after 200 -> false end
+	       {map_event, {bed, key, delete}} ->
+		   receive {map_event, {bed, key, delete}} -> true after 200 -> false end
 	   after 800 -> false_false
 	   end,
 
     jc:put(evs, one, 1),
-    true = receive {evs, one, write, 1} -> true end,
+    true = receive {map_event, {evs, one, write, 1}} -> true end,
     jc:put(evs, one, 2),
-    true = receive {evs, one, delete} ->
-		   receive {evs, one, write, 2} ->
+    true = receive {map_event, {evs, one, delete}} ->
+		   receive {map_event, {evs, one, write, 2}} ->
 			    true
 		   end
 	   end.
@@ -920,7 +920,7 @@ topic_subscribe_test(_Config)->
     up = collect(),
     ok = bridge({topic_unsubscribe, test, any}),
     ok = bridge({topic_event, test, a_test}),
-    {test, a_test} = collect().
+    {topic_event, {test, a_test}} = collect().
 
 
 % subscribing to node_events should get them
@@ -939,11 +939,11 @@ cluster_test(_Config) ->
     
     erlang:open_port({spawn, "erl -name jc3@127.0.0.1 -config ../../lib/jc/test/app2.config -eval 'application:ensure_all_started(jc)' -pa ../../lib/*/ebin"},[out]),
     timer:sleep(2000),
-    {jc_node_events,{nodeup,'jc3@127.0.0.1',
-		     ['jc1@127.0.0.1','jc2@127.0.0.1',
-		      'jc3@127.0.0.1'],
-		     ['jc1@127.0.0.1','jc2@127.0.0.1',
-		      'jc3@127.0.0.1']}} = collect(),
+    {topic_event, {jc_node_events,{nodeup,'jc3@127.0.0.1',
+				   ['jc1@127.0.0.1','jc2@127.0.0.1',
+				    'jc3@127.0.0.1'],
+				   ['jc1@127.0.0.1','jc2@127.0.0.1',
+				    'jc3@127.0.0.1']}}} = collect(),
 
 
     jc_psub:topic_subscribe(self(), topic_test, any),
@@ -954,39 +954,39 @@ cluster_test(_Config) ->
     jc_psub:map_subscribe(self(), bed, any, delete),
     
     rpc:call('jc2@127.0.0.1', jc, put, [bed, 1, 1]),
-    {bed,1,write,1} = collect(),
+    {map_event, {bed,1,write,1}} = collect(),
     rpc:call('jc3@127.0.0.1', jc, put, [bed, 1, 2]),
-    {bed,1,delete} = collect(),
-    {bed,1,write,2} = collect(),
+    {map_event, {bed,1,delete}} = collect(),
+    {map_event, {bed,1,write,2}} = collect(),
     rpc:call('jc2@127.0.0.1', jc_psub, topic_event, [topic_test, tt1]),
-    {topic_test,tt1}=collect(),
+    {topic_event, {topic_test,tt1}} =collect(),
     rpc:call('jc3@127.0.0.1', jc_psub, topic_event, [topic_test2, tt2]),				    
-    {topic_test2,tt2}=collect(),
+    {topic_event, {topic_test2,tt2}} =collect(),
     collect_error = collect(),
     
     rpc:call('jc2@127.0.0.1', init, stop, []),
 
-    {jc_node_events,{nodedown,'jc2@127.0.0.1',
-		     ['jc1@127.0.0.1', 'jc3@127.0.0.1'],
-		     ['jc1@127.0.0.1','jc2@127.0.0.1', 'jc3@127.0.0.1']}} = collect(),
+    {topic_event, {jc_node_events,{nodedown,'jc2@127.0.0.1',
+				   ['jc1@127.0.0.1', 'jc3@127.0.0.1'],
+				   ['jc1@127.0.0.1','jc2@127.0.0.1', 'jc3@127.0.0.1']}}} = collect(),
 
     rpc:call('jc3@127.0.0.1', jc, evict, [bed, 1]),
-    {bed,1,delete} = collect(),
+    {map_event, {bed,1,delete}} = collect(),
 
 
     rpc:call('jc3@127.0.0.1', jc, stop, []),
 
-    {jc_node_events,{nodedown,'jc3@127.0.0.1',
-		     ['jc1@127.0.0.1'],
-		     ['jc1@127.0.0.1','jc2@127.0.0.1', 'jc3@127.0.0.1']}} = collect(),
+    {topic_event, {jc_node_events,{nodedown,'jc3@127.0.0.1',
+				   ['jc1@127.0.0.1'],
+				   ['jc1@127.0.0.1','jc2@127.0.0.1', 'jc3@127.0.0.1']}}} = collect(),
    collect_error = collect(),
 
 
     rpc:call('jc3@127.0.0.1', application, ensure_all_started, [jc]),
-    {jc_node_events,{nodeup,'jc3@127.0.0.1',
-		     ['jc1@127.0.0.1','jc3@127.0.0.1'],
-		     ['jc1@127.0.0.1','jc2@127.0.0.1',
-		      'jc3@127.0.0.1']}} = collect(),
+    {topic_event, {jc_node_events,{nodeup,'jc3@127.0.0.1',
+				   ['jc1@127.0.0.1','jc3@127.0.0.1'],
+				   ['jc1@127.0.0.1','jc2@127.0.0.1',
+				    'jc3@127.0.0.1']}}} = collect(),
     ok = bridge({node_topic_unsub}),
     timer:sleep(100),
     rpc:call('jc3@127.0.0.1', jc, stop, []),
