@@ -2,29 +2,36 @@
 %%% @author Jim Rosenblum <jrosenblum@carelogistics.com>
 %%% @copyright (C) 2015, Jim Rosenblum
 %%% @doc 
-%%% This is an Edn, binary protocol to communicte with JC. The protocol is Edn 
-%%% ( string-based data notcations (https://github.com/edn-format/edn) ) 
-%%% encode as binary sent over TCP.
+%%%
+%%% JC Protocol 1.0
+%%% This is an binary-encoded, Edn string protocol used to provide socket-based
+%%% interoperability with JC. The protocol utilizes Edn, 
+%%% a string-based data notation -- see https://github.com/edn-format/edn.
 %%% 
-%%% The protocol defiens two message types CONNECT and COMMAND which are 
-%%% binary strings consisting of an 8 byte size followed by the 
-%%% CONNECT or COMMAND portion. 
+%%% The protocol defines two message types CONNECT and COMMAND which are 
+%%% binary strings consisting of an 8 byte size followed by CONNECT or
+%%% COMMAND details.
 %%%
-%%% All responses are also binary strings consisting of an 8 byte size followed
-%%% by the Edn response.
+%%% All responses are similarly binary strings with an 8 byte size prefix.
 %%%
-%%% The CONNECT command initiates a session, currently the only version is 1.0:
+%%% The CONNECT command initiates a session, 
 %%% M = <<"(:connect {:version 1.0})">> 
-%%% Size is 25, so the CONNECT frame would be:
-%%% <<Size:8, M/binary>> = CONNECT frame =
+%%% Size is 25, so the CONNECT message is::
+%%% <<25:8, M/binary>> = 
 %%% <<25,40,58,99,111,110,110,101,99,116,32,123,58,118,101,
 %%%   114,115,105,111,110,32,49,46,48,125,41>>
+%%%
+%%% The server will respond to a CONNECT command with either an error or
+%%% the encode version of {:version 1.0}
+%%% <<13:8, {:version 1.0}/binary>> = 
+%%% <<13,123,118,101,114,115,105,111,110,32,49,46,48,125>>
 %%% 
-%%% COMMAND messages consist of an 8 bytes size followed by the command.
+%%% COMMAND messages consist of an 8 bytes prefix  followed by the command.
 %%%
 %%% NOTICE THAT KEYWORDS IN EDN will be convereted to atoms for erlang. Thus,
-%%% Module and Function names must be Edn keywords. The form of the string 
-%%% should be (:module, :fn (args)) as in:
+%%% Module and Function names must be Edn keywords. The form of a command
+%%% message musbt be an Edn list with keywords specifying the desired Module
+%%% and function, as in: (:module, :fn (args))
 %%% (:jc :put (:evs 1 "a string value"))
 %%%
 %%% A client session might look as follows
@@ -36,7 +43,7 @@
 %%%
 %%% Edn commands map directly to cache functions with the exception of the 
 %%% jc_psub subscription functions which do NOT need a self() parameter since
-%%% the tcp listener is the process which subscribes. So:
+%%% the per-session, tcp listener is the process which subscribes. So:
 %%%
 %%% client:send("(:jc_psub :map_subscribe (:evs :any :any))").
 %%% ===> ok

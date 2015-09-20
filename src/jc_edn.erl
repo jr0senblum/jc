@@ -1,3 +1,12 @@
+%%% ----------------------------------------------------------------------------
+%%% @author Jim Rosenblum <jrosenblum@carelogistics.com>
+%%% @copyright (C) 2015, Jim Rosenblum
+%%% @doc 
+%%% This module converts jc cache returns to Edn to be put over the wire as 
+%%% the TCP/socket protocol for JC interoperability.
+%%% @end
+%%% Created : 25 Aug 2015 by Jim Rosenblum <jrosenblum@carelogistics.coml>
+%%% ----------------------------------------------------------------------------
 -module(jc_edn).
 
 -export([to_edn/1]).
@@ -10,22 +19,16 @@ to_edn(Term) ->
 
 edn({error, E}) ->
     ["{:error ", edn_term(E), "}"];
-
 edn(ok) ->
     ":ok";
-
 edn({ok, not_exist}) ->
     ":not_exist";
-
 edn({version, V}) ->
     ["{:version ", V,"}"];
-
 edn(true) ->
     "true";
-
 edn(false) ->
     "false";
-
 edn(miss) ->
     ":miss";
 
@@ -43,6 +46,14 @@ edn({map_event, {Map, Key, write, V}}) ->
       " :key ", edn_term(Key),
       " :op write", 
       " :value :", edn_term(V), "}}"];
+
+edn({uptime, [{up_at, U},{now, N}, {up_time, {D, {H, M, S}}}]}) ->
+    ["{:uptime {:up_at ", edn_term(list_to_binary(U)), 
+              " :now ", edn_term(list_to_binary(N)),
+              " :up_time {:days ", edn_term(D),
+                           " :hours ", edn_term(H),
+                           " :minutes ", edn_term(M),
+                           " :seconds ", edn_term(S), "}}}"];
     
 edn({nodes, {active, A}, {configured, C}}) ->
     ["{:active (", edn_term(A), ") :configured (", edn_term(C), ")}"];
@@ -53,14 +64,11 @@ edn({sizes, Details}) ->
       " {", edn_term(Cnt), " ", edn_term(Words),"}} "] 
       || {Name, Cnt, Words} <- Details],")}"];
 
-edn({A, L}) when is_atom(A), is_list(L) ->
-    ["{:",atom_to_list(A), " (", [["{", edn_term(M)," ", edn_term(S),"} "] || {M,S} <- L], ")}"];
+
 
 edn({sequence, Number}) ->
     ["{:sequence ", edn_term(Number), "}"];
 
-edn({ok, I}) when is_integer(I) ->
-    [":ok ", edn_term(I)];
 
 edn({ok, {cnt, Cnt}}) ->
     ["{:count ", edn_term(Cnt), "}"];
@@ -71,13 +79,15 @@ edn({records, Cnt}) ->
 edn({maps, MapList}) ->
     ["{:maps (", edn_term(MapList), ")}"];
 
-edn({uptime, [{up_at, U},{now, N}, {up_time, {D, {H, M, S}}}]}) ->
-    ["{:uptime {:up_at ", edn_term(list_to_binary(U)), 
-              " :now ", edn_term(list_to_binary(N)),
-              " :up_time {:days ", edn_term(D),
-                           " :hours ", edn_term(H),
-                           " :minutes ", edn_term(M),
-                           " :seconds ", edn_term(S), "}}}"];
+
+edn({ok, I}) when is_integer(I) ->
+    [":ok ", edn_term(I)];
+
+
+edn({A, L}) when is_atom(A), is_list(L) ->
+    ["{:",atom_to_list(A), 
+     " (", [["{", edn_term(M)," ", edn_term(S),"} "] || {M,S} <- L], ")}"];
+
 
 edn({ok, {key, K}}) ->
     ["{:key ", edn_(K), "}"];
@@ -101,6 +111,7 @@ edn({ok, [T|_]=L}) when is_tuple(T) ->
 edn(T) -> edn_term(T).
 
 
+
 edn_([]) ->
     "()";
 
@@ -110,12 +121,12 @@ edn_([_|_]=L) ->
 edn_(T) ->
     edn_term(T).
 
+
 edn_term(nil) -> ["nil"];
 
 edn_term({keyword,nil}) -> [":nil"];
 
 edn_term({symbol, S}) -> atom_to_list(S);
-
 
 
 
@@ -169,6 +180,3 @@ edn_term(Term) when is_atom(Term) ->
 
 edn_term(_T) ->
     throw({error, bad_edn}).
-
-
-    

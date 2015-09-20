@@ -10,6 +10,7 @@
 		jc_cluster,
 		jc_edn,
 		jc_eviction_manager,	
+	        jc_protocol,
 		jc_psub,
 		jc_s,
 		jc_sequence,
