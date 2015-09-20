@@ -9,7 +9,9 @@ JC
 
 @doc 
 == JC == 
-== Erlang, Distributable, In-Memory Cache with Pub/Sub, Serialization Assist and JSON-Query Support ==
+==Erlang, Distributable, In-Memory Cache==
+
+=== Pub/Sub, Serialization Assist, JSON-Query Support and Simple Edn-based Binary Protocol for Interoperability ===
 ===Features===
 <ul>
 <li>Cache entries are Map, Key, Value, [TTL], [Sequence]
@@ -29,23 +31,19 @@ number is lower than the current, per-map max are disallowed
 thereby ensuring, for example, that stale puts do not
 overwrite fresher ones due to the fresh one beating the stale
 one to the cache.</li>
-<li>JSON Query Support
-<ul>
+<li>JSON Query Support</li>
 <li>Query by JSON: When Values are JSON, evict_match/2,
 evict_all_match/1 and values_match/2 can search or evict
 keys whose JSON value, at a location specificed by a java-style, dot-path
 string equals the specified value. That is,
-jc:values_match(bed, "id.type=3") would return all values for Keys in the
-bed Map whose JSON value was an object with an "id":3 in the top-level.
-</li>
+jc:values_match(bed, “id.type=3”) would return all values for Keys in the
+bed Map whose JSON value was an object with an “id”:3 in the top-level.</li>
 <li>Ad-hoc, Index Support: In order to support faster
 operations, (2-3 orders of magnitude), each map can have up to four,
 dot-path, strings configured for which jc will provide
 index support.</li>
 <li>Auto Index Recognition - Ability to detect frequently used
 JSON querries and automatically start indexing on them.</li>
-</ul>
-</li>
 <li>User Controlled Eviction
 <ul>
 <li>Map-level TTL: A job runs at configured intervals and removes
@@ -65,18 +63,25 @@ any key and for write, delete or either operations</li>
 broadcast arbitrary messages under those topic names</li>
 </ul>
 </li>
+<li>Interopability: Edn-based binary protocol over TCP
+<ul>
+<li>Edn strings can be used over TCP to communicate with cache functionality.
+Edn strings -&gt; binary -&gt; TCP &lt;- binary &lt;- Edn strings</li>
+</ul>
+</li>
 <li>Bridge process that accepts messages from a client indicating
 cache operations, executes the cache operations and returns the
 results to the client. This has been used with JInterface to
 interoperate with CLOJURE and Java clients</li>
 <li>Fine-grained logging via lager</li>
 </ul>
-<p>###Cache Functions (jc)</p>
+===Cache Functions (jc)===
 <ul>
 <li>Create
 <ul>
 <li>put(Map, Key, Value, [TTLSecs]) -&gt; {ok, {key, Key}} | {error, badarg}</li>
-<li>put_all(Map, [{K,V},{K,V},…], [TTLSecs]) -&gt; {ok, CntSuccessfulPuts}|{error, badarg}</li>
+<li>put_all(Map, [{K,V},{K,V},…], [TTLSecs]) -&gt; {ok, {cnt, CntSuccessfulPuts}} |
+{error, badarg}</li>
 </ul>
 </li>
 <li>Delete
@@ -90,11 +95,12 @@ interoperate with CLOJURE and Java clients</li>
 </li>
 <li>Retrieve
 <ul>
-<li>get(Map, Key) -&gt; {ok, Value} | miss</li>
+<li>get(Map, Key) -&gt; {ok, {value, Value}} | miss</li>
 <li>get_all(Map, [K1, K2, …]) -&gt; {ok, {Found=[{K1,V1},…], Misses=[K2,…]}}</li>
 <li>key_set(Map) -&gt; {ok, [K1, K2, …]} for each Key in the Map</li>
 <li>values(Map) -&gt; {ok, [V1, V2, …]} for each Value in the Map</li>
-<li>values_match(Map, Criteria=“JSon.Path.Match=Value”) -&gt; {ok, [{K1,V1}, {K2,V2}, …]}</li>
+<li>values_match(Map, Criteria=“JSon.Path.Match=Value”) -&gt;
+{ok, [{K1,V1}, {K2,V2}, …]}</li>
 </ul>
 </li>
 <li>Flush
@@ -113,19 +119,20 @@ interoperate with CLOJURE and Java clients</li>
 <ul>
 <li>cache_nodes() -&gt; {nodes, {active, [Node1,… ]},
 {configured, [Node1,… ]}}</li>
-<li>cache_size() -&gt; {size, [{TableName, RecordCnt, Words}],…}</li>
+<li>cache_size() -&gt; {sizes, [{TableName, RecordCnt, Words}],…}</li>
 <li>map_size(Map) -&gt; {records, Count}</li>
-<li>maps() -&gt; [Map1, Map2,…]</li>
+<li>maps() -&gt; {maps, [Map1, Map2,…]}</li>
 <li>up() -&gt; {uptime, [{up_at, String},{now, String},
-{up_time {D, {H, M, S}}}]</li>
+{up_time, {D, {H, M, S}}}]</li>
 </ul>
 </li>
 </ul>
-<h3><a id="Searializable_Cache_Functions_jc_s_85"></a>Searializable Cache Functions (jc_s)</h3>
-<p>Identical to the standard, CRUD functions above, except that</p>
+<h3><a id="Searializable_Cache_Functions_jc_s_96"></a>Searializable Cache Functions (jc_s)</h3>
+<p>Identical to the Create and Evict family of functions above, except:</p>
 <ul>
 <li>Additional sequence parameter which is expected to be a monotonically
-increcing integer which is used to disalow “out of sequence” operations</li>
+increcing integer (with respect to a given Map) which is used to disalow
+“out of sequence” operations</li>
 <li>Functions return {error, out_of_seq} if one attemts an out of sequence
 operation
 <ul>
@@ -139,17 +146,17 @@ operation
 </li>
 <li>Meta Functions
 <ul>
-<li>sequence() -&gt; {ok, [{Map, Highest_Number},… ]}</li>
-<li>sequence(Map) -&gt; {ok, Hightest_Number} | {ok, not_exist}</li>
+<li>sequence() -&gt; {sequences, [{Map, Highest_Number},… ]}</li>
+<li>sequence(Map) -&gt; {sequence, Hightest_Number} | {ok, not_exist}</li>
 </ul>
 </li>
 </ul>
-<p>###Eviction Manager Functions (jc_eviction_manager)</p>
+===Eviction Manager Functions (jc_eviction_manager)===
 <ul>
 <li>set_max_ttl(Map, Secs) -&gt; ok | {error, badarg}</li>
-<li>get_max_ttls() -&gt; [{Map, Secs}, …]</li>
+<li>get_max_ttls() -&gt; {ttls, [{Map, Secs}, …]}</li>
 </ul>
-<p>###Pub/Sub Functions (jc_psub)</p>
+===Pub/Sub Functions (jc_psub)===
 <ul>
 <li>map_subscribe(Pid, Map, Key|any, write|delete|any) -&gt; ok |
 {error, badarg}
@@ -173,7 +180,7 @@ operation
 <li>topic_event(Topic, Value) -&gt; ok. &lt;-- Broadcasts Value to all
 subscribers of Topic</li>
 </ul>
-<p>###Indexing Functions (jc_store)</p>
+===Indexing Functions (jc_store)===
 <ul>
 <li>start_indexing(Map, Path={bed,&quot;<a href="http://menu.id">menu.id</a>&quot;}) -&gt; ok |
 {error, no_indexes_available} |
@@ -183,7 +190,7 @@ subscribers of Topic</li>
 of given Map</li>
 <li>indexes() -&gt; [{{Map, Path}, Position},…] for all indexes</li>
 </ul>
-<p>###Bridge Functions (jc_bridge)</p>
+===Bridge Functions (jc_bridge)===
 <ul>
 <li>
 <p>All functions from the jc, jc_s, jc_eviction_manager, jc_psub
@@ -202,7 +209,56 @@ client will recieve:</p>
 <p>{From, {node_topic_unsub}} -&gt; ok.</p>
 </li>
 </ul>
-<p>###Application Modules</p>
+<h3><a id="Interoperability_Ednbased_protocol_169"></a>Interoperability: Edn-based protocol</h3>
+<p>The protocol utilizes Edn, a string-based data notation – see <a href="https://github.com/edn-format/edn">https://github.com/edn-format/edn</a>. UTF-8 Edn strings, binary encoded over TCP.</p>
+<p>The protocol defines two message types CONNECT and COMMAND which are
+binary strings consisting of an 8-byte size prefix followed by the
+CONNECT or COMMAND details.</p>
+<p>Responses are also binary strings with an 8-byte size prefix.</p>
+<p>The CONNECT command initiates a session,</p>
+<pre><code>M = &lt;&lt;&quot;(:connect {:version 1.0})&quot;&gt;&gt;
+</code></pre>
+<p>Size is 25, so the CONNECT message is:</p>
+<pre><code>&lt;&lt;25:8, M/binary&gt;&gt; = 
+&lt;&lt;25,40,58,99,111,110,110,101,99,116,32,123,58,118,101,
+  114,115,105,111,110,32,49,46,48,125,41&gt;&gt;
+</code></pre>
+<p>The server will respond to a CONNECT command with either an error or
+the encode version of {:version 1.0}</p>
+<pre><code>&lt;&lt;13:8, {:version 1.0}/binary&gt;&gt; = 
+&lt;&lt;13,123,118,101,114,115,105,111,110,32,49,46,48,125&gt;&gt;
+</code></pre>
+<p>COMMAND messages consist of an 8 bytes prefix  followed by the command.</p>
+<p>NOTICE THAT KEYWORDS IN EDN will be convereted to atoms for erlang. Thus,
+Module and Function names must be Edn keywords. The form of a command
+message must be an Edn list with keywords specifying the desired Module
+and function, as in: (:module, :fn (args))</p>
+<pre><code>(:jc :put (:evs 1 &quot;a string value&quot;))
+</code></pre>
+<p>A client session might look as follows</p>
+<pre><code>client:send(&quot;(:jc :put (:evs 1 \&quot;a string value\&quot;))&quot;).
+==&gt; {:key 1}
+
+client:send(&quot;(:jc :get (:evs 1))&quot;).
+==&gt; {:value &quot;a string value&quot;}
+</code></pre>
+<p>Edn commands map directly to cache functions with the exception of the
+jc_psub subscription functions which do NOT need a self() parameter since
+the per-session, tcp listener is the process which subscribes. So:</p>
+<pre><code>client:send(&quot;(:jc_psub :map_subscribe (:evs :any :any))&quot;).
+===&gt; ok
+</code></pre>
+<p>upon an update to the evs map, the client receives,</p>
+<pre><code>{:map_event {:map :evs :key 1 :op delete}}
+{:map_event {:map :evs :key 1 :op write :value :1}}
+</code></pre>
+===Configuration===
+<ul>
+<li>Application configuration is in sys.config which is heavily
+commented</li>
+<li>Cookie, node-name and auto-restart of VM controlled by vm.args</li>
+</ul>
+===Application Modules===
 <ul>
 <li>jc_cluster
 <ul>
@@ -225,6 +281,11 @@ numbers on jc_s operations</li>
 <li>Analysis and indexing inititation of JSON query strings</li>
 </ul>
 </li>
+<li>jc_protocol, jc_edn
+<ul>
+<li>Erlang -&gt; Edn and protocol modules</li>
+</ul>
+</li>
 <li>jc_psub:
 <ul>
 <li>Pub / Sub of cache write and delete events</li>
@@ -240,13 +301,7 @@ jc functionality</li>
 </ul>
 </li>
 </ul>
-<p>###Configuration</p>
-<ul>
-<li>Application configuration is in sys.config which is heavily
-commented</li>
-<li>Cookie, node-name and auto-restart of VM controlled by vm.args</li>
-</ul>
-<p>###Build Instructions</p>
+===Build Instructions===
 <ul>
 <li>
 <p>Ensure that Erlang 17 or higher is installed</p>
@@ -259,8 +314,7 @@ commented</li>
 <p>Edit the sys.config and vm.args files in ./config</p>
 <ul>
 <li>
-<p>vm.args: Indicate the correct node names and cookie in
-vm.args</p>
+<p>vm.args: Indicate the correct node names and cookie</p>
 </li>
 <li>
 <p>sys.config: Adjust prarameters as neccesary.</p>
@@ -271,6 +325,6 @@ vm.args</p>
 </ul>
 </li>
 </ul>
-<p>###Documentation</p>
+===Documentation===
 <p><code>[root@dbo1] ./rebar3 edoc</code></p>
 

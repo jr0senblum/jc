@@ -2,8 +2,8 @@
 %%% @author Jim Rosenblum <jrosenblum@carelogistics.com>
 %%% @copyright (C) 2015, Jim Rosenblum
 %%% @doc 
-%%% This module converts jc cache returns to Edn to be put over the wire as 
-%%% the TCP/socket protocol for JC interoperability.
+%%% This module converts jc cache return values to Edn -  to be put over the 
+%%% wire via TCP - for JC interoperability.
 %%% @end
 %%% Created : 25 Aug 2015 by Jim Rosenblum <jrosenblum@carelogistics.coml>
 %%% ----------------------------------------------------------------------------

@@ -15,16 +15,17 @@
 %%% All responses are similarly binary strings with an 8 byte size prefix.
 %%%
 %%% The CONNECT command initiates a session, 
-%%% M = <<"(:connect {:version 1.0})">> 
+%%%
+%%% ```M = <<"(:connect {:version 1.0})">>''' 
 %%% Size is 25, so the CONNECT message is::
-%%% <<25:8, M/binary>> = 
-%%% <<25,40,58,99,111,110,110,101,99,116,32,123,58,118,101,
-%%%   114,115,105,111,110,32,49,46,48,125,41>>
+%%% ```<<25:8, M/binary>> = 
+%%%    <<25,40,58,99,111,110,110,101,99,116,32,123,58,118,101,
+%%%      114,115,105,111,110,32,49,46,48,125,41>> '''
 %%%
 %%% The server will respond to a CONNECT command with either an error or
 %%% the encode version of {:version 1.0}
-%%% <<13:8, {:version 1.0}/binary>> = 
-%%% <<13,123,118,101,114,115,105,111,110,32,49,46,48,125>>
+%%% ```<<13:8, {:version 1.0}/binary>> = 
+%%%    <<13,123,118,101,114,115,105,111,110,32,49,46,48,125>>'''
 %%% 
 %%% COMMAND messages consist of an 8 bytes prefix  followed by the command.
 %%%

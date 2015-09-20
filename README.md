@@ -1,7 +1,9 @@
 JC  
 ====
 
-##Erlang, Distributable, In-Memory Cache with Pub/Sub, Serialization Assist and JSON-Query Support.
+##Erlang, Distributable, In-Memory Cache
+
+### Pub/Sub, Serialization Assist, JSON-Query Support and Simple Edn-based Binary Protocol for Interoperability.
 
 
 [![Build Status](https://travis-ci.org/jr0senblum/jc.svg)](https://travis-ci.org/jr0senblum/jc)
@@ -47,6 +49,9 @@ JC
   any key and for write, delete or either operations
   * Clients can create and subscribe to arbitrary 'topic's and 
   broadcast arbitrary messages under those topic names
+* Interopability: Edn-based binary protocol over TCP
+  * Edn strings can be used over TCP to communicate with cache functionality.
+    Edn strings -> binary -> TCP <- binary <- Edn strings  
 * Bridge process that accepts messages from a client indicating
   cache operations, executes the cache operations and returns the
   results to the client. This has been used with JInterface to 
@@ -90,7 +95,7 @@ JC
 
 
 ### Searializable Cache Functions (jc_s)
-Identical to the Create and Evict family of functions aboce, except:
+Identical to the Create and Evict family of functions above, except:
 * Additional sequence parameter which is expected to be a monotonically
   increcing integer (with respect to a given Map) which is used to disalow
   "out of sequence" operations
@@ -162,6 +167,68 @@ Identical to the Create and Evict family of functions aboce, except:
   {From, {node_topic_unsub}} -> ok.
 
 
+### Interoperability: Edn-based protocol
+The protocol utilizes Edn, a string-based data notation -- see https://github.com/edn-format/edn. UTF-8 Edn strings, binary encoded over TCP.
+
+The protocol defines two message types CONNECT and COMMAND which are 
+binary strings consisting of an 8-byte size prefix followed by the 
+CONNECT or COMMAND details.
+
+Responses are also binary strings with an 8-byte size prefix.
+
+The CONNECT command initiates a session, 
+
+    M = <<"(:connect {:version 1.0})">>
+
+Size is 25, so the CONNECT message is:
+
+    <<25:8, M/binary>> = 
+    <<25,40,58,99,111,110,110,101,99,116,32,123,58,118,101,
+      114,115,105,111,110,32,49,46,48,125,41>>
+
+The server will respond to a CONNECT command with either an error or
+the encode version of {:version 1.0}
+
+    <<13:8, {:version 1.0}/binary>> = 
+    <<13,123,118,101,114,115,105,111,110,32,49,46,48,125>>
+ 
+COMMAND messages consist of an 8 bytes prefix  followed by the command.
+
+NOTICE THAT KEYWORDS IN EDN will be convereted to atoms for erlang. Thus,
+Module and Function names must be Edn keywords. The form of a command
+message must be an Edn list with keywords specifying the desired Module
+and function, as in: (:module, :fn (args))
+
+    (:jc :put (:evs 1 "a string value"))
+
+A client session might look as follows
+
+    client:send("(:jc :put (:evs 1 \"a string value\"))").
+    ==> {:key 1}
+
+    client:send("(:jc :get (:evs 1))").
+    ==> {:value "a string value"}
+
+Edn commands map directly to cache functions with the exception of the 
+jc_psub subscription functions which do NOT need a self() parameter since
+the per-session, tcp listener is the process which subscribes. So:
+
+    client:send("(:jc_psub :map_subscribe (:evs :any :any))").
+    ===> ok
+
+upon an update to the evs map the client receives, 
+
+    {:map_event {:map :evs :key 1 :op delete}}
+    {:map_event {:map :evs :key 1 :op write :value :1}}
+
+
+
+###Configuration
+* Application configuration is in sys.config which is heavily
+  commented
+* Cookie, node-name and auto-restart of VM controlled by vm.args
+
+
 ###Application Modules
 * jc_cluster
   * Simple, mnesia-based, cluster creation and management
@@ -172,6 +239,8 @@ Identical to the Create and Evict family of functions aboce, except:
   numbers on jc_s operations
 * jc_analyzer
   * Analysis and indexing inititation of JSON query strings
+* jc_protocol, jc_edn
+  * Erlang -> Edn and protocol modules
 * jc_psub: 
   * Pub / Sub of cache write and delete events
   * On-demand, ad-hoc topic events
@@ -182,13 +251,6 @@ Identical to the Create and Evict family of functions aboce, except:
   jc functionality
 
 
-
-###Configuration
-* Application configuration is in sys.config which is heavily
-  commented
-* Cookie, node-name and auto-restart of VM controlled by vm.args
-
-
 ###Build Instructions
 * Ensure that Erlang 17 or higher is installed
 * Get the Source Code from Stash
@@ -196,20 +258,16 @@ Identical to the Create and Evict family of functions aboce, except:
    `[root@db01] git clone https://github.com/jr0senblum/jc.git`
 
  * Edit the sys.config and vm.args files in ./config
-    * vm.args: Indicate the correct node names and cookie in
-      vm.args
-   * sys.config: Adjust prarameters as neccesary.
+    * vm.args: Indicate the correct node names and cookie
+    * sys.config: Adjust prarameters as neccesary.
 
      `[root@db01] ./rebar3 release`
     
      or
 
      `[root@db01] ./rebar3 prod release`
-
-
    	
 
 ###Documentation
 
    `[root@dbo1] ./rebar3 edoc`
-
