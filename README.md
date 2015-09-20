@@ -58,7 +58,7 @@ JC
 ###Cache Functions (jc)
 * Create
   * put(Map, Key, Value, [TTLSecs]) -> {ok, {key, Key}} | {error, badarg}
-  * put_all(Map, [{K,V},{K,V},...], [TTLSecs]) -> {ok, {keys, CntSuccessfulPuts}} |
+  * put_all(Map, [{K,V},{K,V},...], [TTLSecs]) -> {ok, {cnt, CntSuccessfulPuts}} |
                                                   {error, badarg}
 * Delete
   * evict(Map, Key) -> ok
@@ -90,9 +90,10 @@ JC
 
 
 ### Searializable Cache Functions (jc_s)
-Identical to the standard, CRUD functions above, except that
+Identical to the Create and Evict family of functions aboce, except:
 * Additional sequence parameter which is expected to be a monotonically
-  increcing integer which is used to disalow "out of sequence" operations
+  increcing integer (with respect to a given Map) which is used to disalow
+  "out of sequence" operations
 * Functions return {error, out_of_seq} if one attemts an out of sequence 
   operation
   * evict(Map, Key, Seq)
