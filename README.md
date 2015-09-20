@@ -27,7 +27,7 @@ JC
   * Query by JSON: When Values are JSON, evict_match/2,
     evict_all_match/1 and values_match/2 search or evict
     keys whose JSON value, at a location specificed by a java-style, dot-path
-    string, equals the specified value. That is,
+    string, equals the given value. That is,
     jc:values_match(bed, "id.type=3") would return all values for Keys in the
     bed 'Map' whose JSON value was an object with an "id":3 in the top-level.
   * Ad-hoc, Index Support: In order to support faster
@@ -133,6 +133,7 @@ Identical to the Create and Evict family of functions above, except:
   subscribers of Topic
 * topic_subscribe(Pid, jc_node_events, any) subscribtes the user
   to node up and node down events:
+  
   `{jc_node_events, {nodedown, DownedNode, [ActiveNodes],[ConfiguredNodes]}}`
   `{jc_node_events, {nodeup, UppedNode, [ActiveNodes],[ConfiguredNodes]}}`
 
@@ -178,7 +179,7 @@ The protocol defines two message types CONNECT and COMMAND which are
 binary strings consisting of an 8-byte, size prefix followed by the 
 CONNECT or COMMAND details.
 
-Responses are also binary strings with an 8-byte size prefix.
+Responses are also binary strings with an 8-byte, size prefix.
 
 The CONNECT command initiates a session, 
 
