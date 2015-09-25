@@ -148,6 +148,7 @@ init(Ref, S, T, _Opts = [Port]) ->
 -spec handle_info(any(),#jc_p{}) -> {noreply,#jc_p{}}.
 
 handle_info({tcp, S, Data}, State = #jc_p{socket=S, trans=T})->
+
     NewState = protocol(Data, State),
     T:setopts(S, [{active, once}]),
     {noreply, NewState, ?TIMEOUT};
@@ -231,6 +232,7 @@ protocol(B, #jc_p{trans = T, socket = S} = State) ->
 %% repat,
 %%
 proto(B, #jc_p{command = <<>>}=State) ->
+  
     <<Size:8, C/binary>> = B,
     get_command(C, <<>>, State#jc_p{size=Size});
 
@@ -252,25 +254,63 @@ get_command(<<C:1/binary, B/binary>>, Acc, #jc_p{size=Size}=S) when Size > 0 ->
     get_command(B, <<Acc/binary, C/binary>>, S#jc_p{size = Size-1}).
 
 
-parse(B, #jc_p{trans = T, socket = S, command = Com, connected = false}=State)->
-    Edn = binary_to_list(Com),
+%parse(B, #jc_p{trans = T, socket = S, command = Com, connected = false}=State)->
+%    Edn = binary_to_list(Com),
+%
+%    case element(2, erldn:parse_str(Edn)) of
+%	[connect, {map, [{version, Version}]}] ->
+%	    lager:debug("~p (~p): connected with version: ~p",
+%			[?MODULE, self(), {Version}]),
+%	    T:send(S, marshal({version, <<"1.0">>})),
+%	    parse_ballance(B, State#jc_p{connected = true});
+%	_ ->
+%	    throw({fatal, bad_connect_frame})
+%   end;
 
-    case element(2, erldn:parse_str(Edn)) of
-	[connect, {map, [{version, Version}]}] ->
+
+% Parse and execute the COMMAND.
+%parse(B, #jc_p{trans = T, socket = S, command = Com} = State) ->
+%    lager:debug("~p (~p): executing command: ~p",  [?MODULE, self(), Com]),
+%
+%    Edn = binary_to_list(Com),
+%    [M, F, A] = 
+%	erldn:to_erlang(element(2, erldn:parse_str(Edn)),
+%			[{json, fun jc_protocol:fix/3}]),
+%   A2 = convert(F, A),
+%
+%    A3 = case F of
+%	     _ when F == map_subscribe;
+%		    F == map_unsubscribe;
+%		    F == topic_subscribe;
+%		    F == topic_unsubscribe ->
+%		 [self()| A2];
+%	     _ ->
+%		 A2
+%	 end,
+ %   R = apply(M, F, A3),
+%
+ %   T:send(S, marshal(R)),
+  %  parse_ballance(B, State).
+
+
+parse(B, #jc_p{trans = T, socket = S, command = Com, connected = false}=State)->
+    case jsonx:decode(Com) of
+	{[{<<"connect">>,{[{<<"version">>,<<"1.0">>}]}}]} = Connect->
 	    lager:debug("~p (~p): connected with version: ~p",
-			[?MODULE, self(), {Version}]),
-	    T:send(S, marshal({version, <<"1.0">>})),
+			[?MODULE, self(), <<"1.0">>]),
+	    T:send(S, marshal(Connect)),
 	    parse_ballance(B, State#jc_p{connected = true});
 	_ ->
 	    throw({fatal, bad_connect_frame})
-    end;
+   end;
 
 % Parse and execute the COMMAND.
 parse(B, #jc_p{trans = T, socket = S, command = Com} = State) ->
     lager:debug("~p (~p): executing command: ~p",  [?MODULE, self(), Com]),
+    {[{<<"module">>, M},
+      {<<"function">>, F},
+      {<<"args">>, A}]} = jsonx:decode(Com),
 
-    Edn = binary_to_list(Com),
-    [M, F, A] = erldn:to_erlang(element(2, erldn:parse_str(Edn))),
     A2 = case F of
 	     _ when F == map_subscribe;
 		    F == map_unsubscribe;
@@ -280,10 +320,13 @@ parse(B, #jc_p{trans = T, socket = S, command = Com} = State) ->
 	     _ ->
 		 A
 	 end,
-    R = apply(M, F, A2),
+    R = apply(bin_to_atom(M), bin_to_atom(F), A2),
+
     T:send(S, marshal(R)),
     parse_ballance(B, State).
 
+bin_to_atom(Bin)->
+    binary_to_atom(Bin, utf8).
 
 parse_ballance(<<>>, State) ->
     reset_state(State);
@@ -305,10 +348,9 @@ reset_state(S) ->
 	   connected=true}.
 
 
-% Marshal the messate 
+% Marshal the message 
 marshal(Message) ->
-    Bin = iolist_to_binary(jc_edn:to_edn(Message)),
+    Bin = jsonx:encode(Message),
     Size = byte_size(Bin),
     <<Size:8, Bin/binary>>.
-
-
+		   

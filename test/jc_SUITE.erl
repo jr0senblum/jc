@@ -40,7 +40,6 @@
 
 
 
-
 % So we can test that all erlang types are valid keys, values and maps
 -record(rec, {value}).
 -define(ALL_TYPES, [-2, 0, 2, 2.2, two, <<2>>, <<"2">>, {a, tuple}, #{value=>2},
@@ -76,6 +75,7 @@ init_per_suite(Config) ->
     lager:set_loglevel(lager_console_backend, error),
     [{maps, [bed, evsRequest]} | Config].
 
+
 init_per_testcase(_, Config) ->
     {maps, Maps} = bridge({maps}),
     [bridge({clear, Map}) || Map <- Maps],
@@ -88,6 +88,7 @@ end_per_testcase(_, Config) ->
 end_per_suite(Config) ->
     jc:stop(),
     Config.
+
 
 
 auto_analyzer_test(_Confi) ->

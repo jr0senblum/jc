@@ -131,10 +131,11 @@ Identical to the Create and Evict family of functions above, except:
 * topic_unsubscribe(Pid, Topic, Value) -> ok | {error, badarg}
 * topic_event(Topic, Value) -> ok. <-- Broadcasts Value to all
   subscribers of Topic
-* topic_subscribe(Pid, jc_node_events, any) subscribtes the user
+* topic_subscribe(Pid, jc_node_events, any) -> ok subscribtes the user
   to node up and node down events:
   
   `{jc_node_events, {nodedown, DownedNode, [ActiveNodes],[ConfiguredNodes]}}`
+  
   `{jc_node_events, {nodeup, UppedNode, [ActiveNodes],[ConfiguredNodes]}}`
 
 
