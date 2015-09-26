@@ -3,7 +3,7 @@ JC
 
 ##Erlang, Distributable, In-Memory Cache
 
-### Pub/Sub; JSON-Query; Consistency Assist; and Simple, Edn-based, Binary Protocol for Interoperability.
+### Pub/Sub; JSON-Query; Consistency Assist; and Simple, JSON over TCP, Binary Protocol for Interoperability.
 
 
 [![Build Status](https://travis-ci.org/jr0senblum/jc.svg)](https://travis-ci.org/jr0senblum/jc)
@@ -50,9 +50,9 @@ JC
   * Clients can create and subscribe to arbitrary 'topic's and 
   broadcast arbitrary messages under those topic names
   * Clients can subscribe to node-up and node-down events 
-* Interopability: Edn-based, binary protocol over TCP
-  * Edn strings can be used over TCP to interoperate with the cache eco-system.
-    UTF-8 Edn strings -> binary -> TCP --- TCP <- binary <- UTF-8 Edn strings  
+* Interopability: JSON, binary protocol over TCP
+  * JSON strings can be used over TCP to interoperate with the cache eco-system.
+    UTF-8 JSON strings -> binary -> TCP --- TCP <- binary <- UTF-8 JSON strings  
 * Bridge process that accepts messages from a client indicating
   cache operations, executes the cache operations and returns the
   results to the client. This has been used with JInterface to 
@@ -109,7 +109,7 @@ Identical to the Create and Evict family of functions above, except:
   * remove_items(Map, Keys, Seq)
 * Meta Functions
   * sequence() -> {sequences, [{Map, Highest_Number},... ]}
-  * sequence(Map) -> {sequence, Hightest_Number} | {ok, not_exist}
+  * sequence(Map) -> {sequence, Hightest_Number}
 
 
 
@@ -144,9 +144,9 @@ Identical to the Create and Evict family of functions above, except:
                                                {error, no_indexes_available} |
 							       {error, Term}
   * stop_indexing(Map, Path={bed,"menu","id"}) -> ok
-  * indexes(Map) -> [{{Map, Path}, Position},...] for all indexes
+  * indexes(Map) -> {indexes, [{{Map, Path}, Position},...]} for all indexes
                                                   of given Map
-  * indexes() -> [{{Map, Path}, Position},...] for all indexes
+  * indexes() -> {indexes, [{{Map, Path}, Position},...]} for all indexes
 
 
 ###Bridge Functions (jc_bridge)
@@ -173,8 +173,8 @@ Identical to the Create and Evict family of functions above, except:
   {From, {node_topic_unsub}} -> ok.
 
 
-### Interoperability: Edn-based protocol
-The protocol utilizes Edn, a string-based data notation -- see https://github.com/edn-format/edn. UTF-8 Edn strings, binary encoded over TCP.
+### Interoperability: JSON-based protocol
+The protocol utilizes UTF-8 JSON strings binary encoded over TCP.
 
 The protocol defines two message types CONNECT and COMMAND which are 
 binary strings consisting of an 8-byte, size prefix followed by the 
@@ -184,50 +184,44 @@ Responses are also binary strings with an 8-byte, size prefix.
 
 The CONNECT command initiates a session, 
 
-    M = <<"(:connect {:version 1.0})">>
+    M = <<"{\"connect\": \"version\": \"1.0\"}">>
 
-Size is 25, so the CONNECT message is:
+Size is 29, so the CONNECT message is:
 
-    <<25:8, M/binary>> = 
-    <<25,40,58,99,111,110,110,101,99,116,32,123,58,118,101,
-      114,115,105,111,110,32,49,46,48,125,41>>
+    <<29:8, M/binary>> =
+    <<29,123,34,99,111,110,110,101,99,116,34,58,123,34,118,
+      101,114,115,105,111,110,34,58,34,49,46,48,34,125,125>>
 
 The server will respond to a CONNECT command with either an error or
-the encoded version of {:version 1.0}
+the encoded version of 
 
-    <<13:8, {:version 1.0}/binary>> = 
-    <<13,123,118,101,114,115,105,111,110,32,49,46,48,125>>
+    M = "{\"version\": \"1.0\"}"
+ 
+    <<17:8, M/binary>> = 
+    <<17,123,34,118,101,114,115,105,111,110,34,58,34,49,46,48,34,125>>
  
 COMMAND messages consist of an 8-byte prefix followed by the command.
 
-NOTICE THAT KEYWORDS IN EDN will be convereted to Erlang atoms. Thus,
-Module and Function names (as with all atoms) must be Edn keywords. The form 
-of a COMMAND message must be an Edn list with keywords specifying the desired 
-Module and Function followed by a list of arguments, as in: (:module, :fn (args))
+The form of a COMMAND message is as follows
+    {"m": Module, "f": Function, "a": [Arg1, Arg2, ...]}
 
-    (:jc :put (:evs 1 "a string value"))
+A client session might look as follows (remove escape characters for legibility)
 
-A client session might look as follows
+   client:send({"connect": "version": "1.0"})
+    ==> {"version": :1.0"}
 
-    client:send("(:jc :put (:evs 1 \"a string value\"))").
-    ==> {:key 1}
+   client:send({"m":"jc", "f":"put", "a":["aMap", "aKey", "a string value"]})
+    ==> {"status":"ok","key":"aKey"}>>
 
-    client:send("(:jc :get (:evs 1))").
-    ==> {:value "a string value"}
+    client:send(({"m":"jc","f":"get","a":["aMap", "aKey"]}).
+    ==> {"status":"ok","value":"a string value"}
 
-Edn commands map directly to cache functions with the exception of the 
+The JSON commands map directly to cache Module Functions with the exception of the 
 jc_psub subscription functions which do NOT need a self() parameter since
 the per-session, TCP listener is the process which subscribes. So:
 
-    client:send("(:jc_psub :map_subscribe (:evs :any :any))").
+    client:send({"m":"jc_psub", "f":"map_subscribe", "a": ["evs" "any", "any"))").
     ===> ok
-
-upon an update to the evs map the client receives, 
-
-    {:map_event {:map :evs :key 1 :op delete}}
-    {:map_event {:map :evs :key 1 :op write :value :1}}
-
-
 
 ###Configuration
 * Application configuration is in sys.config which is heavily

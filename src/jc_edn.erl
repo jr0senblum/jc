@@ -14,15 +14,21 @@
 
 -spec to_edn(term()) -> binary().
 to_edn(Term) ->
-    R = jsonx:encode(edn(Term)),
-    io:format("==> ~s~n",[R]),
-    R.
+    jsonx:encode(edn(Term)).
+
 
 edn(true) -> [true];
 edn(false) -> [false];
 
 edn({topic_event, {Topic, E}}) ->
     {[{topic_event, [{topic, edn(Topic)}, {event, edn(E)}]}]};
+
+
+
+edn({jc_node_events, {EventType, Node, [ActiveNodes],[ConfiguredNodes]}}) ->
+    {[{jc_node_event, [{EventType, edn_term(Node)},
+		       {active, [edn_term(N) || N <- ActiveNodes]},
+		       {configured, [edn_term(N) || N <- ConfiguredNodes]}]}]};
 
 edn({map_event, {Map, Key, delete}}) ->
     {[{map_event, [{map, edn_term(Map)},
@@ -52,16 +58,23 @@ edn({sizes, Details}) ->
     {[{sizes, [{[{table, edn_term(Name)}, {reccords, edn_term(Cnt)},{words, edn_term(Words)}]} ||
       {Name, Cnt, Words} <- Details]}]};
 
-edn({sequence, Number}) ->
-    {[{sequence, edn_term(Number)}]};
+edn({sequences, L}) ->
+    {[{sequences, [edn_term(ASeq) || ASeq <-L]}]};
+
+edn({sequence, L}) ->
+    {[{sequence, edn_term(L)}]};
 
 edn({records, Cnt}) ->
     {[{records, edn_term(Cnt)}]};
 
 edn({maps, MapList}) ->
-    {[{maps, lists:flatten([edn_term(MapList)])}]};
+    {[{maps, [edn_term(Map) || Map <- MapList]}]};
 
 
+edn({indexes, IndexList}) ->
+    {[{indexes, [[{map, edn_term(Map)}, 
+		 {path, tuple_to_list(PTuple)}, 
+		 {position, edn_term(Pos)}] || {{Map, PTuple}, Pos} <- IndexList]}]};
 
 edn({version, V}) ->
     {[{status, ok}, {version, V}]};
@@ -83,34 +96,35 @@ edn({ok, not_exist}) ->
 edn({ok, {cnt, Cnt}}) -> 
     {[{status, ok}, {count, edn_term(Cnt)}]};
 
-edn({ok, I}) when is_integer(I) -> 
-    "*******************";
-
 edn({ok, {key, K}}) ->
     {[{status, ok}, {key, edn_term(K)}]};
 
 edn({ok, {value, V}}) ->
-    {[{status, ok}, {key, edn_term(V)}]};
+    {[{status, ok}, {value, edn_term(V)}]};
 
 edn({ok, {H, M}}) when is_list(H), is_list(M) ->
-    Hits = lists:flatten([edn_term(H)]),
-    Misses = lists:flatten([edn_term(M)]),
-    {[{status, ok}, {hits, Hits}, {misses, Misses}]};
+    {[{status, ok}, 
+      {hits, [edn_term(Hit) || Hit <- H]},
+      {misses, [edn_term(Miss) || Miss <- M]}]};
+
+
 
 edn({ok, []}) -> 
     {[{status, ok}, {items, []}]};
 
 
+edn({ok, [T|_]=L}) when is_tuple(T) ->
+    {[{status, ok}, {items, [edn_term(Elt) || Elt <- L]}]};
+
 edn({ok, H}) when is_list(H) -> 
     {[{status, ok}, 
-      {items, [edn_term(X) || X<-H]}]};
+      {items, [edn_term(X) || X <- H]}]};
 
-
-edn({ok, [T|_]=L}) when is_tuple(T) ->
-    {[{status, ok}, [edn_term(L)]]};
 
 edn({A, L}) when is_atom(A), is_list(L) -> 
-    {[{status, ok}, [{edn_term(M), edn_term(S)} || {M,S} <- L]]};
+    {[{status, ok}, {edn_term(A), [edn_term(I) || I <- L]}]};
+
+
 
 edn(T) -> 
     edn_term(T).
@@ -150,3 +164,5 @@ edn_term(B) when is_binary(B) ->
 
 edn_term(_T) ->
     throw(bad_edn).
+
+

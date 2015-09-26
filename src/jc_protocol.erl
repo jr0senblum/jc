@@ -163,7 +163,8 @@ handle_info(timeout, State) ->
 	{stop, normal, State};
 
 handle_info(Msg, State = #jc_p{socket=S, trans = T}) ->
-    T:send(S, marshal(Msg)),
+    io:format("received ~p~n", [Msg]),
+    T:send(S, marshal(jc_edn:to_edn(Msg))),
     {noreply, State, ?TIMEOUT}.
 
 
@@ -220,10 +221,10 @@ protocol(B, #jc_p{trans = T, socket = S} = State) ->
 	proto(B, State)
     catch
 	throw:{fatal, F} ->
-	    T:send(S, marshal({error, {protocol, F}})),
+	    T:send(S, marshal(jsonx:encode({error, {protocol, F}}))),
 	    self() ! {tcp_closed, S};
 	_:E ->
-	    T:send(S, marshal({error, E})),
+	    T:send(S, marshal(jsonx:encode({error, E}))),
 	    reset_state(State)
     end.
 	
@@ -254,51 +255,12 @@ get_command(<<C:1/binary, B/binary>>, Acc, #jc_p{size=Size}=S) when Size > 0 ->
     get_command(B, <<Acc/binary, C/binary>>, S#jc_p{size = Size-1}).
 
 
-%parse(B, #jc_p{trans = T, socket = S, command = Com, connected = false}=State)->
-%    Edn = binary_to_list(Com),
-%
-%    case element(2, erldn:parse_str(Edn)) of
-%	[connect, {map, [{version, Version}]}] ->
-%	    lager:debug("~p (~p): connected with version: ~p",
-%			[?MODULE, self(), {Version}]),
-%	    T:send(S, marshal({version, <<"1.0">>})),
-%	    parse_ballance(B, State#jc_p{connected = true});
-%	_ ->
-%	    throw({fatal, bad_connect_frame})
-%   end;
-
-
-% Parse and execute the COMMAND.
-%parse(B, #jc_p{trans = T, socket = S, command = Com} = State) ->
-%    lager:debug("~p (~p): executing command: ~p",  [?MODULE, self(), Com]),
-%
-%    Edn = binary_to_list(Com),
-%    [M, F, A] = 
-%	erldn:to_erlang(element(2, erldn:parse_str(Edn)),
-%			[{json, fun jc_protocol:fix/3}]),
-%   A2 = convert(F, A),
-%
-%    A3 = case F of
-%	     _ when F == map_subscribe;
-%		    F == map_unsubscribe;
-%		    F == topic_subscribe;
-%		    F == topic_unsubscribe ->
-%		 [self()| A2];
-%	     _ ->
-%		 A2
-%	 end,
- %   R = apply(M, F, A3),
-%
- %   T:send(S, marshal(R)),
-  %  parse_ballance(B, State).
-
-
 parse(B, #jc_p{trans = T, socket = S, command = Com, connected = false}=State)->
     case jsonx:decode(Com) of
-	{[{<<"connect">>,{[{<<"version">>,<<"1.0">>}]}}]} = Connect->
+	{[{<<"connect">>,{[{<<"version">>,<<"1.0">>}]}}]} ->
 	    lager:debug("~p (~p): connected with version: ~p",
 			[?MODULE, self(), <<"1.0">>]),
-	    T:send(S, marshal(Connect)),
+	    T:send(S, marshal(<<"{\"version\":\"1.0\"}">>)),
 	    parse_ballance(B, State#jc_p{connected = true});
 	_ ->
 	    throw({fatal, bad_connect_frame})
@@ -307,22 +269,15 @@ parse(B, #jc_p{trans = T, socket = S, command = Com, connected = false}=State)->
 % Parse and execute the COMMAND.
 parse(B, #jc_p{trans = T, socket = S, command = Com} = State) ->
     lager:debug("~p (~p): executing command: ~p",  [?MODULE, self(), Com]),
-    {[{<<"module">>, M},
-      {<<"function">>, F},
-      {<<"args">>, A}]} = jsonx:decode(Com),
+    {[{<<"m">>, M},
+      {<<"f">>, F},
+      {<<"a">>, A}]} = jsonx:decode(Com),
 
-    A2 = case F of
-	     _ when F == map_subscribe;
-		    F == map_unsubscribe;
-		    F == topic_subscribe;
-		    F == topic_unsubscribe ->
-		 [self()| A];
-	     _ ->
-		 A
-	 end,
+    A2 = modify_for_self(F, A),
+
     R = apply(bin_to_atom(M), bin_to_atom(F), A2),
 
-    T:send(S, marshal(R)),
+    T:send(S, marshal(jc_edn:to_edn(R))),
     parse_ballance(B, State).
 
 bin_to_atom(Bin)->
@@ -349,8 +304,24 @@ reset_state(S) ->
 
 
 % Marshal the message 
-marshal(Message) ->
-    Bin = jsonx:encode(Message),
-    Size = byte_size(Bin),
-    <<Size:8, Bin/binary>>.
-		   
+marshal(Message) -> 
+    Size = byte_size(Message),
+    <<Size:8, Message/binary>>.
+		
+
+modify_for_self(F, [Map, Key, Op]) when F == <<"map_subscribe">>;
+					F == <<"map_unsubscribe">>;
+					F == <<"topic_subscribe">>;
+					F == <<"topic_unsubscribe">> ->
+    [self(), Map, key_or_any(Key), binary_to_atom(Op, utf8)];
+
+modify_for_self(_F, A)  ->
+    A.
+
+
+key_or_any("any") ->
+    any;
+key_or_any(Key) ->
+    Key.
+
+

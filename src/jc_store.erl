@@ -546,24 +546,24 @@ remove_unused_index()->
 %% -----------------------------------------------------------------------------
 %% Return all the JSON-path indexes being used.
 %%
--spec indexes() -> [{{map_name, tuple()}, Pos::non_neg_integer()}].
+-spec indexes() -> {indexes, [{{map_name, tuple()}, Pos::non_neg_integer()}]}.
 
 indexes() -> 
     QH = qlc:q([{R#to_index.map_path, R#to_index.position} 
 		|| R <- mnesia:table(to_index)]),
-    mnesia:async_dirty(fun() -> qlc:e(QH) end ).
+    {indexes, mnesia:async_dirty(fun() -> qlc:e(QH) end )}.
 
 
 %% -----------------------------------------------------------------------------
 %% Return all the JSON-path indexes being used for a given map.
 %%
--spec indexes(map_name()) -> [{{map_name, tuple()}, Pos::non_neg_integer()}].
+-spec indexes(map_name()) -> {indexes, [{{map_name, tuple()}, Pos::non_neg_integer()}]}.
 
 indexes(Map) ->
     QH = qlc:q([{R#to_index.map_path, R#to_index.position} 
 		|| R <- mnesia:table(to_index),
 	           R#to_index.map_name == Map]),
-    mnesia:async_dirty(fun() -> qlc:e(QH) end ).
+    {indexes, mnesia:async_dirty(fun() -> qlc:e(QH) end )}.
 
 
 
