@@ -169,7 +169,7 @@ put(_M, _K, _V, _T) ->
 %% @doc Put all the {K,V} tuples contained in the list. Return 
 %% the number of successes. Use infinity for the ttl. 
 %%
--spec put_all(map_name(), list(tuple())) -> {ok, {cnt, non_neg_integer()}} |
+-spec put_all(map_name(), list(tuple())) -> {ok, {count, non_neg_integer()}} |
 					    {error, badarg}.
 
 put_all(Map, KVList) -> 
@@ -180,14 +180,14 @@ put_all(Map, KVList) ->
 %% @doc Put all the {K,V} pairs contained in the list. Return the number of 
 %% successes. Use the supplied ttl. 
 %%
--spec put_all(map_name(), list(tuple()), ttl()) -> {ok,{cnt,non_neg_integer()}}|
+-spec put_all(map_name(), list(tuple()), ttl()) -> {ok,{count,non_neg_integer()}}|
 						   {error, badarg}.
 
 put_all(Map, KVList, TTL) when ?VALID(TTL) ->
     lager:debug("~p: put_all for map ~p with TTL: ~p.", [?MODULE, Map, TTL]),
 
     Results = [put(Map, Key, Value, TTL) || {Key, Value} <- KVList],
-    {ok, {cnt, length([K || {ok, {key, K}} <- Results])}};
+    {ok, {count, length([K || {ok, {key, K}} <- Results])}};
 put_all(_m, _K, _T) ->
     {error, badarg}.
 

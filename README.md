@@ -64,7 +64,7 @@ JC
 ###Cache Functions (jc)
 * Create
   * put(Map, Key, Value, [TTLSecs]) -> {ok, {key, Key}} | {error, badarg}
-  * put_all(Map, [{K,V},{K,V},...], [TTLSecs]) -> {ok, {cnt, CntSuccessfulPuts}} |
+  * put_all(Map, [{K,V},{K,V},...], [TTLSecs]) -> {ok, {count, CntSuccessfulPuts}} |
                                                   {error, badarg}
 * Delete
   * evict(Map, Key) -> ok

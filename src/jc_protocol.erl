@@ -4,9 +4,8 @@
 %%% @doc 
 %%%
 %%% JC Protocol 1.0
-%%% This is an binary-encoded, Edn string protocol used to provide socket-based
-%%% interoperability with JC. The protocol utilizes Edn, 
-%%% a string-based data notation -- see https://github.com/edn-format/edn.
+%%% This is an binary-encoded, string protocol used to provide socket-based
+%%% interoperability with JC. 
 %%% 
 %%% The protocol defines two message types CONNECT and COMMAND which are 
 %%% binary strings consisting of an 8 byte size followed by CONNECT or
@@ -23,35 +22,22 @@
 %%%      114,115,105,111,110,32,49,46,48,125,41>> '''
 %%%
 %%% The server will respond to a CONNECT command with either an error or
-%%% the encode version of {:version 1.0}
-%%% ```<<13:8, {:version 1.0}/binary>> = 
-%%%    <<13,123,118,101,114,115,105,111,110,32,49,46,48,125>>'''
+%%% the encode version of {version, 1.0}
+%%% ```<<14:8, {version, 1.0}/binary>> = 
+%%%    <<14,123,118,101,114,115,105,111,110,44,32,49,46,48,125>''
 %%% 
 %%% COMMAND messages consist of an 8 bytes prefix  followed by the command.
 %%%
-%%% NOTICE THAT KEYWORDS IN EDN will be convereted to atoms for erlang. Thus,
-%%% Module and Function names must be Edn keywords. The form of a command
-%%% message musbt be an Edn list with keywords specifying the desired Module
-%%% and function, as in: (:module, :fn (args))
-%%% (:jc :put (:evs 1 "a string value"))
-%%%
+%%% The command string is the binary string version of messages used with jc_bridge
+%%% without the self() parameter. The return string is a string versino of the Erlan return values.
 %%% A client session might look as follows
-%%% client:send("(:jc :put (:evs 1 \"a string value\"))").
-%%% ==> {:key 1}
 %%%
-%%% client:send("(:jc :get (:evs 1))").
-%%% ==> {:value "a string value"}
+%%% client:send("{put, evs, 1 \"a string value\"}")
+%%% ==> <<"{ok,{key, 1}}">>
 %%%
-%%% Edn commands map directly to cache functions with the exception of the 
-%%% jc_psub subscription functions which do NOT need a self() parameter since
-%%% the per-session, tcp listener is the process which subscribes. So:
+%%% client:send("{get, evs, 1}"),
+%%% ==> <<"{ok,{value \"a string value\"}}">>
 %%%
-%%% client:send("(:jc_psub :map_subscribe (:evs :any :any))").
-%%% ===> ok
-%%%
-%%% upon update to evs the client receives, 
-%%% {:map_event {:map :evs :key 1 :op delete}}
-%%% {:map_event {:map :evs :key 1 :op write :value :1}}
 %%%
 %%% @end
 %%% Created : 25 Aug 2015 by Jim Rosenblum <jrosenblum@carelogistics.coml>
@@ -164,7 +150,7 @@ handle_info(timeout, State) ->
 
 handle_info(Msg, State = #jc_p{socket=S, trans = T}) ->
     io:format("received ~p~n", [Msg]),
-    T:send(S, marshal(jc_edn:to_edn(Msg))),
+    T:send(S, marshal(Msg)),
     {noreply, State, ?TIMEOUT}.
 
 
@@ -221,10 +207,10 @@ protocol(B, #jc_p{trans = T, socket = S} = State) ->
 	proto(B, State)
     catch
 	throw:{fatal, F} ->
-	    T:send(S, marshal(jsonx:encode({error, {protocol, F}}))),
+	    T:send(S, marshal({error, {protocol, F}})),
 	    self() ! {tcp_closed, S};
 	_:E ->
-	    T:send(S, marshal(jsonx:encode({error, E}))),
+	    T:send(S, marshal({error, E})),
 	    reset_state(State)
     end.
 	
@@ -241,7 +227,6 @@ proto(B, #jc_p{command=Com}=State) ->
     get_command(B, Com, State).
 
 
-
 % Walk the binary accumulating characters until we have grabbed the adveritesed
 % amount. Execute the command, take care of any bytes left over.
 %
@@ -256,32 +241,29 @@ get_command(<<C:1/binary, B/binary>>, Acc, #jc_p{size=Size}=S) when Size > 0 ->
 
 
 parse(B, #jc_p{trans = T, socket = S, command = Com, connected = false}=State)->
-    case jsonx:decode(Com) of
-	{[{<<"connect">>,{[{<<"version">>,<<"1.0">>}]}}]} ->
+    case eval(Com) of
+	open_session ->
 	    lager:debug("~p (~p): connected with version: ~p",
 			[?MODULE, self(), <<"1.0">>]),
-	    T:send(S, marshal(<<"{\"version\":\"1.0\"}">>)),
+	    T:send(S, marshal(<<"{version, 1.0}">>)),
 	    parse_ballance(B, State#jc_p{connected = true});
 	_ ->
-	    throw({fatal, bad_connect_frame})
+	    throw({fatal, bad_connect})
    end;
 
 % Parse and execute the COMMAND.
-parse(B, #jc_p{trans = T, socket = S, command = Com} = State) ->
-    lager:debug("~p (~p): executing command: ~p",  [?MODULE, self(), Com]),
-    {[{<<"m">>, M},
-      {<<"f">>, F},
-      {<<"a">>, A}]} = jsonx:decode(Com),
+parse(B, #jc_p{socket = S, command = Com} = State) ->
+    lager:debug("~p (~p): executing command: ~p~n.",  [?MODULE, self(), Com]),
 
-    A2 = modify_for_self(F, A),
+    case eval(Com) of
+	close_session -> 
+	    self() ! {tcp_closed, S};
+	{command, _R} ->
+	    parse_ballance(B, State);
+	_ ->
+	    throw({fatal, bad_command})
+    end.
 
-    R = apply(bin_to_atom(M), bin_to_atom(F), A2),
-
-    T:send(S, marshal(jc_edn:to_edn(R))),
-    parse_ballance(B, State).
-
-bin_to_atom(Bin)->
-    binary_to_atom(Bin, utf8).
 
 parse_ballance(<<>>, State) ->
     reset_state(State);
@@ -296,6 +278,35 @@ parse_ballance(B, State) ->
 % ==============================================================================
 
 
+eval(Command) ->
+    {ok,Scanned,_} = erl_scan:string(binary_to_list(<<Command/binary, ".">>)),
+    {ok,Parsed} = erl_parse:parse_exprs(Scanned),
+    case Parsed of
+	[{tuple,1,[{atom,1,close}]}] ->
+	    close_session;
+	[{tuple,1,
+	  [{atom,1,connect},{tuple,1,[{atom,1,version},{string,1,"1.0"}]}]}] ->
+	    open_session;
+	AST ->
+	    AST2 = make_ast(AST),
+	    {value, R, _} = erl_eval:exprs(AST2, []),
+	    {command, R}
+    end.
+
+
+% Convet the AST to one that sends jc_bridge the command
+% {Op, P1, P2} becomes jc_bridge ! {self(), {Op, P1, P2}}
+%
+make_ast(AST)->
+    [{tuple, 1, R}] = AST,
+    [{op,1,'!',
+      {atom,1,jc_bridge},
+      {tuple,1,
+       [{call,1,{atom,1,self},[]},
+	{tuple,1,
+	 R}]}}].
+
+
 %% After a COMMAND frame, reset the CONNECTION (state) for next COMMAND frame.
 reset_state(S) ->
     S#jc_p{command = <<>>,
@@ -303,25 +314,19 @@ reset_state(S) ->
 	   connected=true}.
 
 
-% Marshal the message 
-marshal(Message) -> 
+% Marshal the message: make it a binary string representation.
+marshal(M) when is_binary(M)-> 
+    package(M);
+marshal(M) ->
+    package(list_to_binary(io_lib:format("~p",[M]))).
+
+package(Message) ->
+    io:format("I have ~s~n",[Message]),
     Size = byte_size(Message),
     <<Size:8, Message/binary>>.
 		
 
-modify_for_self(F, [Map, Key, Op]) when F == <<"map_subscribe">>;
-					F == <<"map_unsubscribe">>;
-					F == <<"topic_subscribe">>;
-					F == <<"topic_unsubscribe">> ->
-    [self(), Map, key_or_any(Key), binary_to_atom(Op, utf8)];
-
-modify_for_self(_F, A)  ->
-    A.
 
 
-key_or_any("any") ->
-    any;
-key_or_any(Key) ->
-    Key.
 
 
