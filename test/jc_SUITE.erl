@@ -747,7 +747,7 @@ values_match_test(_config) ->
 
 % return all {k,v} that were removed
 remove_items_test(_config) ->
-    {ok,{count,3}} = jc:put_all(bed, [{1, one},{2, two},{3, three}]),
+    {ok,3} = jc:put_all(bed, [{1, one},{2, two},{3, three}]),
     {ok,[{1,one}]} = bridge({remove_items, bed, [1, 22]}),
     {ok, []} = bridge({remove_items, bed, [1, 22]}),
     {ok, [2,3]} = jc:key_set(bed),
@@ -755,7 +755,7 @@ remove_items_test(_config) ->
     {records, 0} = jc:map_size(bed), 
     jc:flush(),
 
-    {ok,{count,3}} = jc_s:put_all(bed, [{1, one},{2, two},{3, three}], 10),
+    {ok,3} = jc_s:put_all(bed, [{1, one},{2, two},{3, three}], 10),
     {ok,[{1,one}]} = bridge({remove_items_s, bed, [1, 22], 11}),
     {ok, []} = bridge({remove_items_s, bed, [1, 22], 12}),
     {ok, [2,3]} = jc:key_set(bed),

@@ -138,7 +138,7 @@ do_put(Map, Key, Value, TTL) ->
 %% of successes.
 %%
 -spec put_all(map_name(), list({key(), value()}), jc_sequence:seq()) -> 
-		     {ok, {cnt, non_neg_integer()}} | trx_ret().
+		     {ok, non_neg_integer()} | trx_ret().
 
 
 put_all(Map, KVList, Seq) when ?VALID(Seq) -> 
@@ -154,7 +154,7 @@ put_all(_M, _K, _S) ->
 %% of successes.
 %%
 -spec put_all(map_name(), list({key(), value()}), ttl(), jc_sequence:seq()) -> 
-		     {ok, {cnt, non_neg_integer()}} | trx_ret().
+		     {ok, non_neg_integer()} | trx_ret().
 
 
 put_all(Map, KVList, TTL, Seq) when ?VALID(TTL) andalso ?VALID(Seq) ->
@@ -172,7 +172,7 @@ put_all(Map, KVList, TTL, Seq) when ?VALID(TTL) andalso ?VALID(Seq) ->
 	{error, _} = E -> 
 	    E;
 	Results -> 
-	    {ok, {cnt, length([K || {ok, K} <- Results])}}
+	    {ok, length([K || {ok, K} <- Results])}
     end;
 
 

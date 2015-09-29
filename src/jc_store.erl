@@ -91,7 +91,7 @@ stats(size) ->
 	  {records, mnesia:table_info(T, size)}, 
 	  {bytes, mnesia:table_info(T, memory) * erlang:system_info(wordsize)}}
 	 || T <-mnesia:system_info(tables)],
-    {ok, Data};
+    {size, Data};
 
 stats(up) ->
     case mnesia:dirty_read(stats, 'jc_store_up_time') of

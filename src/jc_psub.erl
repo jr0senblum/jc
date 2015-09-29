@@ -342,7 +342,7 @@ handle_info({evict_deadbeats, IntMs}, State) ->
     {noreply, State};
 
 % mnesia write, record replaced: broadcast that change to subscribers.
-handle_info({mnesia_table_event, {write, key_to_value, Rec, [Old], _Trx}}, State) ->
+handle_info({mnesia_table_event, {write,key_to_value,Rec,[Old],_Trx}}, State) ->
 
     notify_of_evict(Old),
     notify_of_write(Rec),
@@ -351,29 +351,29 @@ handle_info({mnesia_table_event, {write, key_to_value, Rec, [Old], _Trx}}, State
 
 
 % mnesia write, nothing replaced.
-handle_info({mnesia_table_event, {write, key_to_value, Rec, [], _Trx}}, State) ->
+handle_info({mnesia_table_event,{write, key_to_value, Rec, [], _Trx}}, State) ->
 
     notify_of_write(Rec),
 
     {noreply, State};
 
 
-handle_info({mnesia_table_event, {delete, key_to_value, _What, [Rec], _Trx}}, State) ->
+handle_info({mnesia_table_event,{delete,key_to_value,_What,[Rec],_Tx}},State) ->
 
     notify_of_delete(Rec),
     {noreply, State};
 
 
-handle_info({mnesia_table_event, {delete, key_to_value, _What, [], _Trx}}, State) ->
+handle_info({mnesia_table_event, {delete, key_to_value,_What,[],_Trx}},State) ->
     {noreply, State};
 
 
 % flush delete's the table form the scheema
-handle_info({mnesia_table_event, {delete, schema, {schema, _}, _What, _Trx}}, State) ->
+handle_info({mnesia_table_event,{delete,schema,{schema,_},_What,_Trx}},State) ->
     {noreply, State};
 
 % flush adds the table to the sceema
-handle_info({mnesia_table_event, {write, schema, {schema, _, _What}, _Rec, _Trx}}, State) ->
+handle_info({mnesia_table_event,{write,schema,{schema,_,_Wht},_Rc,_T}},State) ->
 
     {noreply, State};
 
@@ -411,7 +411,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% @private Construct a nodeup topic event and send it.
 %%
 signal_nodeup(UpNode) ->
-    {nodes, {active, A}, {configured, C}} = jc:cache_nodes(),
+    {{active, A}, {configured, C}} = jc:cache_nodes(),
     topic_event(jc_node_events, {nodeup, UpNode, A, C}).
 
 
@@ -419,7 +419,7 @@ signal_nodeup(UpNode) ->
 %% @private Construct a nodedown topic event and send it.
 %%
 signal_nodedown(DownNode) ->
-    {nodes, {active, A}, {configured, C}} = jc:cache_nodes(),
+    {{active, A}, {configured, C}} = jc:cache_nodes(),
     % Mnesia might not know that the node is down yet, so remove
     % it explicitly from the list.
     topic_event(jc_node_events, {nodedown, 

@@ -20,7 +20,6 @@
     ranch,
     lager,
     jsonx,
-    erldn,
     ej
    ]},
   {included_applications, [mnesia]},
