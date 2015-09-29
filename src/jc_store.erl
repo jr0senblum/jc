@@ -80,9 +80,9 @@ up_nodes()->
 %% -----------------------------------------------------------------------------
 %% @doc Return vairous stats information. Currently size and uptime information.
 %% 
--spec stats(size | up) -> {sizes, [{TableNm::atom(), 
-				   {records, RecCnt::non_neg_integer()},
-				   {bytes, Words::non_neg_integer()}}]} |
+-spec stats(size | up) -> {size, [{TableNm::atom(), 
+				 {records, RecCnt::non_neg_integer()},
+				 {bytes, Words::non_neg_integer()}}]} |
 			  {uptime, term()} |
 			  {error, not_found | badarg}.
 stats(size) ->
@@ -91,7 +91,7 @@ stats(size) ->
 	  {records, mnesia:table_info(T, size)}, 
 	  {bytes, mnesia:table_info(T, memory) * erlang:system_info(wordsize)}}
 	 || T <-mnesia:system_info(tables)],
-    {sizes, Data};
+    {ok, Data};
 
 stats(up) ->
     case mnesia:dirty_read(stats, 'jc_store_up_time') of
@@ -157,7 +157,6 @@ evict(Map, Key) ->
 
 flush(silent) ->
     mnesia:clear_table(key_to_value),
-    mnesia:clear_table(ttl),
     mnesia:clear_table(seq),
     mnesia:clear_table(auto_index),
     ok;
@@ -166,7 +165,6 @@ flush(loud) ->
     [mnesia:delete(key_to_value, Akey, write) || 
 	Akey <- mnesia:all_keys(key_to_value)],
 
-    mnesia:clear_table(ttl),
     mnesia:clear_table(seq),
     mnesia:clear_table(auto_index),
     ok.
@@ -546,24 +544,24 @@ remove_unused_index()->
 %% -----------------------------------------------------------------------------
 %% Return all the JSON-path indexes being used.
 %%
--spec indexes() -> {indexes, [{{map_name, tuple()}, Pos::non_neg_integer()}]}.
+-spec indexes() -> [{{map_name, tuple()}, Pos::non_neg_integer()}].
 
 indexes() -> 
     QH = qlc:q([{R#to_index.map_path, R#to_index.position} 
 		|| R <- mnesia:table(to_index)]),
-    {indexes, mnesia:async_dirty(fun() -> qlc:e(QH) end )}.
+    mnesia:async_dirty(fun() -> qlc:e(QH) end ).
 
 
 %% -----------------------------------------------------------------------------
 %% Return all the JSON-path indexes being used for a given map.
 %%
--spec indexes(map_name()) -> {indexes, [{{map_name, tuple()}, Pos::non_neg_integer()}]}.
+-spec indexes(map_name()) -> [{{map_name, tuple()}, Pos::non_neg_integer()}].
 
 indexes(Map) ->
     QH = qlc:q([{R#to_index.map_path, R#to_index.position} 
 		|| R <- mnesia:table(to_index),
 	           R#to_index.map_name == Map]),
-    {indexes, mnesia:async_dirty(fun() -> qlc:e(QH) end )}.
+    mnesia:async_dirty(fun() -> qlc:e(QH) end ).
 
 
 

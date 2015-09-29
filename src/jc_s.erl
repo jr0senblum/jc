@@ -54,23 +54,23 @@
 %% -----------------------------------------------------------------------------
 %% @doc Return the sequence number associated with the given map.
 %%
--spec sequence(map()) -> {sequence, non_neg_integer()}.
+-spec sequence(map()) -> non_neg_integer().
 
 sequence(Map) ->
     Seq = case sequence_for(Map) of
 		 [] -> 0;
 		 N -> N
 	     end,
-    {sequence, Seq}.
+  Seq.
 
 
 %% -----------------------------------------------------------------------------
 %% @doc Return a sorted list of {map, sequence numbers} for each map.
 %%
--spec sequence() -> {sequences, [{map_name(), non_neg_integer()}]}.
+-spec sequence() -> {sequence, [{map_name(), non_neg_integer()}]}.
 
 sequence() ->
-    {sequences, sequence_for(all)}.
+    sequence_for(all).
 
     
 
@@ -85,7 +85,7 @@ sequence() ->
 %% number to ensure serialized operations.
 %%
 -spec put(map_name(), key(), value(), jc_sequence:seq()) -> 
-		 {ok, {key, key()}} | trx_ret().
+		 {ok, key()} | trx_ret().
 
 
 put(Map, Key, Value, Seq) when ?VALID(Seq) ->
@@ -100,7 +100,7 @@ put(_Map, _Key, _Value, _Seq) ->
 %% to ensure serialized operations.
 %%
 -spec put(map_name(), key(), value(), ttl(), jc_sequence:seq()) -> 
-		 {ok, {key, key()}} |
+		 {ok, key()} |
 						       trx_ret().
 
 
@@ -128,7 +128,7 @@ put(_M, _K, _V, _T, _S)  ->
 do_put(Map, Key, Value, TTL) ->
     Ref = make_ref(),
     {ok, {put, Ref}} = jc_store:put(Map, Key, Value, TTL, Ref),
-    {ok, {key, Key}}.
+    {ok, Key}.
     
 
 
@@ -172,7 +172,7 @@ put_all(Map, KVList, TTL, Seq) when ?VALID(TTL) andalso ?VALID(Seq) ->
 	{error, _} = E -> 
 	    E;
 	Results -> 
-	    {ok, {cnt, length([K || {ok, {key, K}} <- Results])}}
+	    {ok, {cnt, length([K || {ok, K} <- Results])}}
     end;
 
 

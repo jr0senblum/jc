@@ -63,8 +63,8 @@ JC
 
 ###Cache Functions (jc)
 * Create
-  * put(Map, Key, Value, [TTLSecs]) -> {ok, {key, Key}} | {error, badarg}
-  * put_all(Map, [{K,V},{K,V},...], [TTLSecs]) -> {ok, {count, CntSuccessfulPuts}} |
+  * put(Map, Key, Value, [TTLSecs]) -> {ok, Key} | {error, badarg}
+  * put_all(Map, [{K,V},{K,V},...], [TTLSecs]) -> {ok, CountOfSuccessfulPuts}} |
                                                   {error, badarg}
 * Delete
   * evict(Map, Key) -> ok
@@ -86,9 +86,8 @@ JC
 * Predicates
   * contains_key(Map, Key) -> true | false.
 * Meta
-  * cache_nodes() -> {nodes, {active, [Node1,... ]}, 
-                             {configured, [Node1,... ]}}
-  * cache_size() -> {sizes, [{TableName, RecordCnt, Words}],...}
+  * cache_nodes() -> {{active, [Node1,... ]}, {configured, [Node1,... ]}}
+  * cache_size() -> {size, [{TableName, RecordCnt, Words}],...}
   * map_size(Map) -> {records, Count}
   * maps() -> {maps, [Map1, Map2,...]}
   * up() -> {uptime, [{up_at, String},{now, String},
@@ -108,14 +107,14 @@ Identical to the Create and Evict family of functions above, except:
   * put_all(Map, [{K,V},{K,V},...], [TTLSecs], Seq)
   * remove_items(Map, Keys, Seq)
 * Meta Functions
-  * sequence() -> {sequences, [{Map, Highest_Number},... ]}
-  * sequence(Map) -> {sequence, Hightest_Number}
+  * sequence() -> [{Map, Highest_Number},... ]
+  * sequence(Map) -> Hightest_Number
 
 
 
 ###Eviction Manager Functions (jc_eviction_manager)
 * set_max_ttl(Map, Secs) -> ok | {error, badarg}
-* get_max_ttls() -> {ttls, [{Map, Secs}, ...]}
+* get_max_ttls() -> [{Map, Secs}, ...]
 
 
 ###Pub/Sub Functions (jc_psub)
@@ -173,55 +172,54 @@ Identical to the Create and Evict family of functions above, except:
   {From, {node_topic_unsub}} -> ok.
 
 
-### Interoperability: JSON-based protocol
-The protocol utilizes UTF-8 JSON strings binary encoded over TCP.
+### Interoperability: String protocol
+This is a binary-encoded, string protocol used to provide socket-based
+interoperability with JC. 
 
-The protocol defines two message types CONNECT and COMMAND which are 
-binary strings consisting of an 8-byte, size prefix followed by the 
-CONNECT or COMMAND details.
+The protocol defines three message types: CONNECT, CLOSE and COMMAND all 
+of which are binary strings consisting of an 8 byte size followed by the
+actual command details.
 
-Responses are also binary strings with an 8-byte, size prefix.
+Responses are also binary strings with an 8 byte size prefix.
 
 The CONNECT command initiates a session, 
 
-    M = <<"{\"connect\": \"version\": \"1.0\"}">>
+    ```M = <<"{connect,{version,\"1.0\"}}">>''' 
 
-Size is 29, so the CONNECT message is:
+    Size is 25, so the CONNECT message is:
 
-    <<29:8, M/binary>> =
-    <<29,123,34,99,111,110,110,101,99,116,34,58,123,34,118,
-      101,114,115,105,111,110,34,58,34,49,46,48,34,125,125>>
+   ```<<25:8, M/binary>> = 
+    <<25,40,58,99,111,110,110,101,99,116,32,123,58,118,101,
+      114,115,105,111,110,32,49,46,48,125,41>> '''
 
 The server will respond to a CONNECT command with either an error or
-the encoded version of 
+the encoded version of {version, 1.0}
 
-    M = "{\"version\": \"1.0\"}"
- 
-    <<17:8, M/binary>> = 
-    <<17,123,34,118,101,114,115,105,111,110,34,58,34,49,46,48,34,125>>
- 
-COMMAND messages consist of an 8-byte prefix followed by the command.
+    ```<<15:8, {version,\"1.0\"}/binary>> = 
+    <15,123,118,101,114,115,105,111,110,44,34,49,46,48,34,125>>
 
-The form of a COMMAND message is as follows
-    {"m": Module, "f": Function, "a": [Arg1, Arg2, ...]}
+The CLOSE command closes the socket ending the session
 
-A client session might look as follows (remove escape characters for legibility)
+    ```M = <<"{close}">>''' 
 
-   client:send({"connect": "version": "1.0"})
-    ==> {"version": :1.0"}
+     Size is 7 so the CLOSE message is:
+  ```<<7,123,99,108,111,115,101,125>> '''
 
-   client:send({"m":"jc", "f":"put", "a":["aMap", "aKey", "a string value"]})
-    ==> {"status":"ok","key":"aKey"}>>
 
-    client:send(({"m":"jc","f":"get","a":["aMap", "aKey"]}).
-    ==> {"status":"ok","value":"a string value"}
+COMMAND messages are string versions of the messages which 
+{@link jc_bridge. jc_bridge} only without the self() parameter. For example
+{self(), {put, Map, Key, Value}} becomes simply 
+"{put, Map, Key, Value}"
 
-The JSON commands map directly to cache Module Functions with the exception of the 
-jc_psub subscription functions which do NOT need a self() parameter since
-the per-session, TCP listener is the process which subscribes. So:
+The return will be an encoded version of a string representation of the Erlang 
+return value. A client session might look as follows:
 
-    client:send({"m":"jc_psub", "f":"map_subscribe", "a": ["evs" "any", "any"))").
-    ===> ok
+client:send("{put, evs, 1, \"{\\\"value:\\\":true}\"}")
+ ==> <<"{ok,1}}">>
+
+client:send("{get, evs, 1}"),
+==> <<"{ok, \"{\\\"value\\\":true}\">>
+
 
 ###Configuration
 * Application configuration is in sys.config which is heavily

@@ -129,7 +129,7 @@ set_max_ttl(_Map, Bad) ->
 %% -----------------------------------------------------------------------------
 %% @doc Return [{Map, TTLSecs}].
 %% 
--spec get_max_ttls() -> {ttls, [{Map::map_name(), Secs::seconds()}]}.
+-spec get_max_ttls() -> [{Map::map_name(), Secs::seconds()}].
 
 get_max_ttls()->
     Trans = fun() ->
@@ -139,7 +139,7 @@ get_max_ttls()->
 				 [],
 				 max_ttl)
 	    end,
-    {ttls, trans_execute(Trans)}.
+    trans_execute(Trans).
 
 
 

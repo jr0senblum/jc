@@ -4,7 +4,7 @@
 %%% @doc 
 %%%
 %%% JC Protocol 1.0
-%%% This is an binary-encoded, string protocol used to provide socket-based
+%%% This is a binary-encoded, string protocol used to provide socket-based
 %%% interoperability with JC. 
 %%% 
 %%% The protocol defines three message types: CONNECT, CLOSE  and COMMAND all 

@@ -91,8 +91,8 @@ map_size(Map)->
 %% used by j_cache. Notice that 'cached' {@link key(). Key} 
 %% {@link value(). Value} data are stored in the key_to_value table.
 %%
--spec cache_size() -> {sizes, [{TableNm::atom(), {records, non_neg_integer()},
-			     {bytes, non_neg_integer()}}]}.
+-spec cache_size() -> {size, [{TableNm::atom(), {records, non_neg_integer()},
+			       {bytes, non_neg_integer()}}]}.
 
 cache_size()->
     jc_store:stats(size).
@@ -122,14 +122,14 @@ up() ->
 %% @doc Return all 'up' JCache nodes and all configured JCache node. A node is
 %% considered to be up if Mnesia and jc_bridge are both up.
 %%
--spec cache_nodes() -> {nodes, {active, [node()]}, {configured, [node()]}}.
+-spec cache_nodes() -> {{active, [node()]}, {configured, [node()]}}.
 
 cache_nodes() ->
     Configured = application:get_env(jc, cache_nodes,[]),
     MnesiaUp = jc_store:up_nodes(),
     Running = [N || N <- MnesiaUp, 
 		    undefined /= rpc:call(N,erlang,whereis,[jc_bridge], 1000)],
-    {nodes, {active,lists:sort(Running)},{configured, lists:sort(Configured)}}.
+    {{active,lists:sort(Running)},{configured, lists:sort(Configured)}}.
 
 
 
@@ -141,7 +141,7 @@ cache_nodes() ->
 %% -----------------------------------------------------------------------------
 %% @doc Put the entry into the cache with a TTL of infinity.
 %% 
--spec put(map_name(), key(), value()) -> {ok, {key, key()}} | {error, badarg}.
+-spec put(map_name(), key(), value()) -> {ok, key()} | {error, badarg}.
 
 put(Map, Key, Value) ->
     put(Map, Key, Value, ?INFINITY).
@@ -150,7 +150,7 @@ put(Map, Key, Value) ->
 %% -----------------------------------------------------------------------------
 %% @doc Put the entry into the cache with the supplie TTL.
 %%
--spec put(map_name(), key(), value(), ttl()) -> {ok, {key, key()}} |
+-spec put(map_name(), key(), value(), ttl()) -> {ok, key()} |
 						{error, badarg}.
 
 put(Map, Key, Value, TTL) when ?VALID(TTL) ->
@@ -159,7 +159,7 @@ put(Map, Key, Value, TTL) when ?VALID(TTL) ->
     Ref = make_ref(),
     F = fun() -> jc_store:put(Map, Key, Value, TTL, Ref) end,
     {ok, {put, Ref}} = trans_execute(F),
-    {ok, {key, Key}};
+    {ok, Key};
 
 put(_M, _K, _V, _T) ->
     {error, badarg}.
@@ -169,7 +169,7 @@ put(_M, _K, _V, _T) ->
 %% @doc Put all the {K,V} tuples contained in the list. Return 
 %% the number of successes. Use infinity for the ttl. 
 %%
--spec put_all(map_name(), list(tuple())) -> {ok, {count, non_neg_integer()}} |
+-spec put_all(map_name(), list(tuple())) -> {ok, non_neg_integer()} |
 					    {error, badarg}.
 
 put_all(Map, KVList) -> 
@@ -180,14 +180,14 @@ put_all(Map, KVList) ->
 %% @doc Put all the {K,V} pairs contained in the list. Return the number of 
 %% successes. Use the supplied ttl. 
 %%
--spec put_all(map_name(), list(tuple()), ttl()) -> {ok,{count,non_neg_integer()}}|
+-spec put_all(map_name(), list(tuple()), ttl()) -> {ok, non_neg_integer()}|
 						   {error, badarg}.
 
 put_all(Map, KVList, TTL) when ?VALID(TTL) ->
     lager:debug("~p: put_all for map ~p with TTL: ~p.", [?MODULE, Map, TTL]),
 
     Results = [put(Map, Key, Value, TTL) || {Key, Value} <- KVList],
-    {ok, {count, length([K || {ok, {key, K}} <- Results])}};
+    {ok, length([K || {ok, K} <- Results])};
 put_all(_m, _K, _T) ->
     {error, badarg}.
 
@@ -369,7 +369,7 @@ contains_key(Map, Key) ->
 %% -----------------------------------------------------------------------------
 %% @doc Retrieve the data associated with Key.
 %%						%
--spec get(map_name(), key()) -> {ok, {value, value()}} | miss.
+-spec get(map_name(), key()) -> {ok, value()} | miss.
 
 get(Map, Key) ->
     lager:debug("~p: get (~p, ~p).",[?MODULE, Map, Key]),
@@ -379,7 +379,7 @@ get(Map, Key) ->
 	{ok, jc_miss} -> 
 	    miss;
 	{ok, #key_to_value{value=Value}} -> 
-	    {ok, {value, Value}}
+	    {ok, Value}
     end.
 
 
