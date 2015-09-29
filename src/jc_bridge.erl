@@ -3,13 +3,12 @@
 %%% @copyright (C) 2014, 
 %%% @doc
 %%% Receives requests of the form {CallerPid::pid(), Message::tuple()}, 
-%%% spawns a process which calls the appropriate module:fn and returns the 
-%%% result to the caller. Primarily used by the Java node (via JInterface) to
-%%% exercise the cache.
+%%% spawns a process which calls the appropriate module and fn and then returns 
+%%% the result to the caller. Primarily used by the Java node (via JInterface) 
+%%% to and jc_protocol module so that non-erlang clients can exercise the cache.
 %%%
-%%% Since this server is the last thing started by the supervisor, it notifys
-%%% all other node's jc_psub that it is up signalaing the node's readiness to act
-%%% as a node cache.
+%%% Since this server is the last thing started by the supervisor, it notifies
+%%% all other node's jc_psub that this node is ready to act as a cache node.
 %%% @end
 %%% Created : 28 Oct 2014 by  <Jim Rosenblum>
 %%% ----------------------------------------------------------------------------
@@ -19,7 +18,7 @@
 
 
 %% Module API
--export([start_link/0]).
+-export([start_link/0, do/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -45,6 +44,16 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
+
+
+%% -----------------------------------------------------------------------------
+%% Take a message (usually from jc_protocol) and send it to jc_bridge using the
+%% PID of the caller.
+%%
+-spec do(Message::string()) -> no_return().
+
+do(Message) ->
+    ?SERVER ! {self(), Message}.
 
 
 %%% ----------------------------------------------------------------------------
