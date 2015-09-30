@@ -322,7 +322,7 @@ reset_state(S) ->
 marshal(M) when is_binary(M)-> 
     package(M);
 marshal(M) ->
-    package(list_to_binary(io_lib:format("~p",[M]))).
+    package(list_to_binary(io_lib:format("~1000000p",[M]))).
 
 package(Message) ->
     Size = byte_size(Message),

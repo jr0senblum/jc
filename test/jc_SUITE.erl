@@ -147,7 +147,7 @@ seq_test(_Config) ->
 
     11 = bridge({sequence, d}),
     1 = bridge({sequence, f}),
-    [] = bridge({sequence, wrong}),
+    0 = bridge({sequence, wrong}),
     jc:flush(),
     [] = bridge({sequence}).
 
