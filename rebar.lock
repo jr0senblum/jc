@@ -10,6 +10,7 @@
   {git,"git://github.com/jr0senblum/jsonx.git",
        {ref,"3b254b7267646bcdd8e8d306740e52c6be41f6a3"}},
   0},
+ {<<"jsx">>,{pkg,<<"jsx">>,<<"2.7.1">>},0},
  {<<"lager">>,
   {git,"git://github.com/basho/lager.git",
        {ref,"840acab51ebfb731de0137d9c6d41e7db4a12793"}},

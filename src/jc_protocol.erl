@@ -15,17 +15,17 @@
 %%%
 %%% The CONNECT command initiates a session, 
 %%%
-%%% ```M = <<"{connect,{version,\"1.0\"}}">>''' 
+%%% ```M = <<"{\"connect\":,{\"version\":\"1.0\"}}">>''' 
 %%%
 %%% Size is 25, so the CONNECT message is:
 %%% ```<<25:8, M/binary>> = 
-%%%    <<25,40,58,99,111,110,110,101,99,116,32,123,58,118,101,
-%%%      114,115,105,111,110,32,49,46,48,125,41>> '''
+%%%      <<25,40,58,99,111,110,110,101,99,116,32,123,58,118,101,
+%%%        114,115,105,111,110,32,49,46,48,125,41>>  '''
 %%%
 %%% The server will respond to a CONNECT command with either an error or
-%%% the encoded version of {version, 1.0}
-%%% ```<<15:8, {version,\"1.0\"}/binary>> = 
-%%%    <15,123,118,101,114,115,105,111,110,44,34,49,46,48,34,125>>
+%%% the encoded version of {\"version\":\"1.0\"}
+%%%   ``` <<15:8, <<"{\"version\":1.0}">> = 
+%%%       <<15,123,34,118,101,114,115,105,111,110,34,58,49,46,48,125>>'''
 %%% 
 %%% The CLOSE command closes the socket ending the session
 %%%
@@ -35,7 +35,7 @@
 %%%  ```<<7,123,99,108,111,115,101,125>> '''
 %%%
 %%%
-%%% COMMAND messages are string versions of the messages which 
+%%% COMMAND messages are string versions of the tuple-messages which 
 %%% {@link jc_bridge. jc_bridge} uses only without the self() parameter. For 
 %%% example {self(), {put, Map, Key, Value}} becomes 
 %%% {put, Map, Key, Value}
@@ -44,10 +44,10 @@
 %%% return value. A client session might look as follows:
 %%%
 %%%     ```client:send("{put, evs, 1, \"a string value\"}")
-%%%     ==> <<"{ok,{key, 1}}">>
+%%%     ==> <<"{\"ok\":1}">>
 %%%
 %%%     client:send("{get, evs, 1}"),
-%%%     ==> <<"{ok,{value \"a string value\"}}">>'''
+%%%     ==> <<"{\"ok\": \"a string value\"}">>'''
 %%%
 %%%
 %%% @end
@@ -224,8 +224,9 @@ protocol(B, #jc_p{trans = T, socket = S} = State) ->
     end.
 	
 
+%% -----------------------------------------------------------------------------
 %% If we have nothing yet, get the size prefix and start accumulating the 
-%% command from the Socket. Oterwise, we have a part of a command from a
+%% command from the Socket. Otherwise, we have a part of a command from a
 %% previous socket communication and we continue accumulating.
 %%
 proto(B, #jc_p{command = <<>>}=State) ->
@@ -236,10 +237,11 @@ proto(B, #jc_p{command=Com}=State) ->
     get_command(B, Com, State).
 
 
-% Walk the binary from the socket, accumulating characters until we have grabbed
-% the adveritesed amount of bytes. Execute the command, and start accumulating the
-% next command's bytes if anything is left over.
-%
+%% -----------------------------------------------------------------------------
+%% Walk the binary from the socket, accumulating characters until we have 
+%% grabbed the adveritesed number of bytes. Execute the command, and start 
+%% accumulating the next command's bytes if anything is left over.
+%%
 get_command(B, Acc, #jc_p{size = 0} = S) ->
     parse(B, S#jc_p{command = Acc});
 
@@ -250,31 +252,39 @@ get_command(<<C:1/binary, B/binary>>, Acc, #jc_p{size=Size}=S) when Size > 0 ->
     get_command(B, <<Acc/binary, C/binary>>, S#jc_p{size = Size-1}).
 
 
-% If there has not been a connect yet, thats all we will accept; otherwise, must
-% be parsing a command
+%% -----------------------------------------------------------------------------
+%% If there has not been a connect yet, thats all we will accept; otherwise, 
+%% we are parsing a command / CLOSE.
 %
 parse(B, #jc_p{trans = T, socket = S, command = Com, connected = false}=State)->
-    case eval(Com) of
+    case evaluate(Com) of
 	open_session ->
 	    lager:debug("~p (~p): connected with version: ~p",
 			[?MODULE, self(), <<"1.0">>]),
-	    T:send(S, marshal(<<"{version, 1.0}">>)),
+	    T:send(S, marshal({version, 1.0})),
 	    parse_ballance(B, State#jc_p{connected = true});
+	close_session -> 
+	    self() ! {tcp_closed, S};
 	_ ->
 	    throw({fatal, missing_connect})
    end;
 
 parse(B, #jc_p{socket = S, command = Com} = State) ->
-    case eval(Com) of
+    case evaluate(Com) of
 	close_session -> 
 	    self() ! {tcp_closed, S};
-	{command, _R} ->
+	{command, R} ->
+	    jc_bridge:do(R),
 	    parse_ballance(B, State);
 	_ ->
 	    throw(bad_command)
     end.
 
 
+%% -----------------------------------------------------------------------------
+%% If no more binary left, reset counters and accumulators for next command, 
+%% else get size and start accumulaitng next command.
+%%
 parse_ballance(<<>>, State) ->
     reset_state(State);
 parse_ballance(B, State) ->
@@ -287,11 +297,15 @@ parse_ballance(B, State) ->
 % Utility functions
 % ==============================================================================
 
-
-eval(Command) ->
+	       
+% ------------------------------------------------------------------------------
+% Given a string representation of a tuple, convert it to an Erlang tuple, make
+% strings binary strings and determine the cache action implied by the Command.
+%
+evaluate(Command) ->
     try
 	{ok,Scanned,_} = erl_scan:string(binary_to_list(<<Command/binary, ".">>)),
-	{ok,Parsed} = erl_parse:parse_exprs(Scanned),
+	{ok,Parsed} = erl_parse:parse_exprs(strings_to_binary(Scanned, [])),
 	determine_action(Parsed)
     catch
 	_:_ -> throw(command_syntax)
@@ -301,14 +315,20 @@ eval(Command) ->
 determine_action([{tuple,1,[{atom,1,close}]}]) ->
     close_session;
 
-determine_action([{tuple,1, [{atom,1,connect},{tuple,1,[{atom,1,version},
-							{string,1,"1.0"}]}]}])->
+determine_action([{tuple,1,[{atom,1,connect},{tuple,1,
+					      [{atom,1,version},
+					       {bin,1,
+						[{bin_element,1,
+						  {string,1,"1.0"},
+						  default,default}]}]}]}]) ->
     open_session;
 
-determine_action(AST) ->
+determine_action([{tuple,1,_}] = AST) ->
     {value, R, _} = erl_eval:exprs(AST, []),
-    jc_bridge:do(R),
-    {command, R}.    
+    {command, R};
+determine_action(_) ->
+    {error, badarg}.
+
 
 
 %% After a COMMAND frame, reset the CONNECTION (state) for next COMMAND frame.
@@ -318,11 +338,14 @@ reset_state(S) ->
 	   connected=true}.
 
 
-% Marshal the message: make it a binary string representation.
-marshal(M) when is_binary(M)-> 
-    package(M);
+% Marshal the message: make it binary JSON.
+marshal({ok,{H, M}}) ->
+    package(jsx:encode([{hits, H}, {misses, M}]));
+
+marshal({X, Y}) ->
+    package(jsx:encode([{X,Y}]));
 marshal(M) ->
-    package(list_to_binary(io_lib:format("~1000000p",[M]))).
+    package(jsx:encode(M)).
 
 package(Message) ->
     Size = byte_size(Message),
@@ -332,4 +355,10 @@ package(Message) ->
 
 
 
-
+% Walk the scanned list of tokens making strings binary strings
+strings_to_binary([], Acc) ->
+    lists:reverse(Acc);
+strings_to_binary([{string, _, _}=S|Tl], Acc) ->
+    strings_to_binary(Tl, [{'>>',1}, S, {'<<',1}|Acc]);
+strings_to_binary([Hd|Tl],Acc) ->
+    strings_to_binary(Tl, [Hd|Acc]).

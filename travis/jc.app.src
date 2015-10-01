@@ -33,6 +33,7 @@
     compiler,
     lager,
     jsone,
+    jsx,
     ej,
     ranch
    ]},
