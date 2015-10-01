@@ -299,11 +299,16 @@ handle_info({From, {indexes, Map}}, State) ->
     _Pid = spawn(fun() -> From ! jc_store:indexes(Map) end),
     {noreply, State};
 
+handle_info({From, Msg}, State) ->
+    From ! {error, unrecognized_command},
+    lager:warning("~p: unrecognized cache command: ~p.",
+		  [?MODULE, Msg]),
+    {noreply, State};
 
-			  
 handle_info(Info, State) ->
     lager:warning("~p: unrecognized handle_info message: ~p.",
-		  [?MODULE,Info]),
+		  [?MODULE, Info]),
+    
     {noreply, State}.
 
 

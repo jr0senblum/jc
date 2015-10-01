@@ -7,7 +7,7 @@
 %%% This is a binary-encoded, string protocol used to provide socket-based
 %%% interoperability with JC. 
 %%% 
-%%% The protocol defines three message types: CONNECT, CLOSE  and COMMAND all 
+%%% The protocol defines three message types: CONNECT, CLOSE and COMMAND all 
 %%% of which are binary strings consisting of an 8 byte size followed by the
 %%% actual command details.
 %%%
@@ -36,18 +36,18 @@
 %%%
 %%%
 %%% COMMAND messages are string versions of the messages which 
-%%% {@link jc_bridge. jc_bridge} only without the self() parameter. For example
-%%% {self(), {put, Map, Key, Value}} becomes simply 
-%%% "{put, Map, Key, Value}"
+%%% {@link jc_bridge. jc_bridge} uses only without the self() parameter. For 
+%%% example {self(), {put, Map, Key, Value}} becomes 
+%%% {put, Map, Key, Value}
 %%%
 %%% The return will be an encoded version of a string representation of the Erlang 
 %%% return value. A client session might look as follows:
 %%%
-%%% client:send("{put, evs, 1, \"a string value\"}")
-%%% ==> <<"{ok,{key, 1}}">>
+%%%     ```client:send("{put, evs, 1, \"a string value\"}")
+%%%     ==> <<"{ok,{key, 1}}">>
 %%%
-%%% client:send("{get, evs, 1}"),
-%%% ==> <<"{ok,{value \"a string value\"}}">>
+%%%     client:send("{get, evs, 1}"),
+%%%     ==> <<"{ok,{value \"a string value\"}}">>'''
 %%%
 %%%
 %%% @end

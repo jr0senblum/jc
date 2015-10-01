@@ -12,7 +12,7 @@ JC
 ==Erlang, Distributable, In-Memory Cache==
 
 === Pub/Sub; JSON-Query; Consistency Assist; and Simple, Edn-based, Binary Protocol for Interoperability. ===
-===Features===
+<p>###Features</p>
 <ul>
 <li>Cache entries are Map, Key, Value, [TTL], [Sequence]
 <ul>
@@ -29,7 +29,7 @@ allows for a sequence-number parameter on the put/x, evict/x,
 match/x and remove/x operations. Operations whose sequence
 number is lower than the current, per-map max are disallowed
 thereby ensuring, for example, that stale puts do not
-overwrite newer ones due to the newer ones beating the stale
+overwrite newer ones due to the newer one beating the stale
 ones to the cache.</li>
 <li>JSON Query Support</li>
 <li>Query by JSON: When Values are JSON, evict_match/2,
@@ -37,13 +37,13 @@ evict_all_match/1 and values_match/2 search or evict
 keys whose JSON value, at a location specificed by a java-style, dot-path
 string, equals the given value. That is,
 jc:values_match(bed, “id.type=3”) would return all values for Keys in the
-bed 'Map' whose JSON value was an object with an “id”:3 in the top-level.</li>
+bed ‘Map’ whose JSON value was an object with an “id”:3 in the top-level.</li>
 <li>Ad-hoc, Index Support: In order to support faster
 operations, (2-3 orders of magnitude), each map can have up to four,
 dot-path, strings configured for which jc will provide
 index support.</li>
 <li>Auto Index Recognition - Frequently used JSON querries will be automatically
- detected and indexing initiated.</li>
+detected and indexing initiated.</li>
 <li>User Controlled Eviction
 <ul>
 <li>Map-level TTL: A job runs at configured intervals and removes
@@ -60,14 +60,14 @@ offered by the Map-level TTL.</li>
 <li>Clients can subscribe to Map events for a specific key or
 any key and for write, delete or either operations</li>
 <li>Clients can create and subscribe to arbitrary 'topic’s and
-  broadcast arbitrary messages under those topic names</li>
+broadcast arbitrary messages under those topic names</li>
 <li>Clients can subscribe to node-up and node-down events</li>
 </ul>
 </li>
-<li>Interopability: Edn-based, binary protocol over TCP
+<li>Interopability: Binary string over TCP protocol
 <ul>
-<li>Edn strings can be used over TCP to interoperate with the cache eco-system
-UTF-8 Edn strings -&gt; binary -&gt; TCP --- TCP &lt;- binary &lt;- UTF-8 Edn strings</li>
+<li>Strings can be used over TCP to interoperate with the cache eco-system.
+UTF-8 strings -&gt; binary -&gt; TCP — TCP &lt;- binary &lt;- UTF-8 strings</li>
 </ul>
 </li>
 <li>Bridge process that accepts messages from a client indicating
@@ -80,8 +80,8 @@ interoperate with CLOJURE and Java clients</li>
 <ul>
 <li>Create
 <ul>
-<li>put(Map, Key, Value, [TTLSecs]) -&gt; {ok, {key, Key}} | {error, badarg}</li>
-<li>put_all(Map, [{K,V},{K,V},…], [TTLSecs]) -&gt; {ok, {cnt, CntSuccessfulPuts}} |
+<li>put(Map, Key, Value, [TTLSecs]) -&gt; {ok, Key} | {error, badarg}</li>
+<li>put_all(Map, [{K,V},{K,V},…], [TTLSecs]) -&gt; {ok, CountOfSuccessfulPuts}} |
 {error, badarg}</li>
 </ul>
 </li>
@@ -118,9 +118,8 @@ interoperate with CLOJURE and Java clients</li>
 </li>
 <li>Meta
 <ul>
-<li>cache_nodes() -&gt; {nodes, {active, [Node1,… ]},
-{configured, [Node1,… ]}}</li>
-<li>cache_size() -&gt; {sizes, [{TableName, RecordCnt, Words}],…}</li>
+<li>cache_nodes() -&gt; {{active, [Node1,… ]}, {configured, [Node1,… ]}}</li>
+<li>cache_size() -&gt; {size, [{TableName, RecordCnt, Words}],…}</li>
 <li>map_size(Map) -&gt; {records, Count}</li>
 <li>maps() -&gt; {maps, [Map1, Map2,…]}</li>
 <li>up() -&gt; {uptime, [{up_at, String},{now, String},
@@ -128,13 +127,13 @@ interoperate with CLOJURE and Java clients</li>
 </ul>
 </li>
 </ul>
-<h3><a id="Consistancy_Supported_Functions_jc_s_96"></a>Consistancy Supported Functions (jc_s)</h3>
+<h3><a id="Consistacny_Supported_Functions_jc_s_96"></a>Consistacny Supported Functions (jc_s)</h3>
 <p>Identical to the Create and Evict family of functions above, except:</p>
 <ul>
 <li>An additional sequence parameter, which is expected to be a monotonically
 incresing integer (with respect to a given Map), is used to disalow
 “out of sequence” operations</li>
-<li>Functions return {error, out_of_seq} if an out of sequence operation is attempted
+<li>Functions return {error, out_of_seq} if out of sequence operation is attempted
 <ul>
 <li>evict(Map, Key, Seq)</li>
 <li>evict_all_match(Criteria = “Json.Path.Match=Value”, Seq)</li>
@@ -146,43 +145,53 @@ incresing integer (with respect to a given Map), is used to disalow
 </li>
 <li>Meta Functions
 <ul>
-<li>sequence() -&gt; {sequences, [{Map, Highest_Number},… ]}</li>
-<li>sequence(Map) -&gt; {sequence, Hightest_Number} | {ok, not_exist}</li>
+<li>sequence() -&gt; [{Map, Highest_Number},… ]</li>
+<li>sequence(Map) -&gt; Hightest_Number</li>
 </ul>
 </li>
 </ul>
 ===Eviction Manager Functions (jc_eviction_manager)===
 <ul>
 <li>set_max_ttl(Map, Secs) -&gt; ok | {error, badarg}</li>
-<li>get_max_ttls() -&gt; {ttls, [{Map, Secs}, …]}</li>
+<li>get_max_ttls() -&gt; [{Map, Secs}, …]</li>
 </ul>
 ===Pub/Sub Functions (jc_psub)===
 <ul>
-<li>map_subscribe(Pid, Map, Key|any, write|delete|any) -&gt; ok |
-{error, badarg}
+<li>
+<p>map_subscribe(Pid, Map, Key|any, write|delete|any) -&gt; ok |
+{error, badarg}</p>
 <ul>
 <li>client will receive
 <ul>
-<li>{map, key, delete}, or</li>
-<li>{map, key, write, value}</li>
+<li>{map_event, {Map, Key, delete}}, or</li>
+<li>{map_event, {Map, key, write, Value}</li>
 </ul>
 </li>
 </ul>
 </li>
-<li>map_unsubscribe(Pid, Map, Key|any, write|delete|any) -&gt; ok |
-{error, badarg}</li>
-<li>topic_subscribe(Pid, Topic, Value) -&gt; ok | {error, badarg}
+<li>
+<p>map_unsubscribe(Pid, Map, Key|any, write|delete|any) -&gt; ok |
+{error, badarg}</p>
+</li>
+<li>
+<p>topic_subscribe(Pid, Topic, Value) -&gt; ok | {error, badarg}</p>
 <ul>
-<li>client will receive {Topic, Value}</li>
+<li>client will receive {topic_event, {Topic, Value}}</li>
 </ul>
 </li>
-<li>topic_unsubscribe(Pid, Topic, Value) -&gt; ok | {error, badarg}</li>
-<li>topic_event(Topic, Value) -&gt; ok. &lt;-- Broadcasts Value to all
-  subscribers of Topic</li>
-<li>topic_subscribe(Pid, jc_node_events, any) -&gt; ok | {error, badarg}</li>
+<li>
+<p>topic_unsubscribe(Pid, Topic, Value) -&gt; ok | {error, badarg}</p>
+</li>
+<li>
+<p>topic_event(Topic, Value) -&gt; ok. &lt;-- Broadcasts Value to all
+subscribers of Topic</p>
+</li>
+<li>
+<p>topic_subscribe(Pid, jc_node_events, any) -&gt; ok subscribtes the user
+to node up and node down events:</p>
 <p><code>{jc_node_events, {nodedown, DownedNode, [ActiveNodes],[ConfiguredNodes]}}</code></p>
 <p><code>{jc_node_events, {nodeup, UppedNode, [ActiveNodes],[ConfiguredNodes]}}</code></p>
-<p>{From, {node_topic_unsub}} -&gt; ok.</p>
+</li>
 </ul>
 ===Indexing Functions (jc_store)===
 <ul>
@@ -190,9 +199,9 @@ incresing integer (with respect to a given Map), is used to disalow
 {error, no_indexes_available} |
 {error, Term}</li>
 <li>stop_indexing(Map, Path={bed,“menu”,“id”}) -&gt; ok</li>
-<li>indexes(Map) -&gt; [{{Map, Path}, Position},…] for all indexes
+<li>indexes(Map) -&gt; {indexes, [{{Map, Path}, Position},…]} for all indexes
 of given Map</li>
-<li>indexes() -&gt; [{{Map, Path}, Position},…] for all indexes</li>
+<li>indexes() -&gt; {indexes, [{{Map, Path}, Position},…]} for all indexes</li>
 </ul>
 ===Bridge Functions (jc_bridge)===
 <ul>
@@ -213,48 +222,45 @@ client will recieve:</p>
 <p>{From, {node_topic_unsub}} -&gt; ok.</p>
 </li>
 </ul>
-<h3><a id="Interoperability_Ednbased_protocol_169"></a>Interoperability: Edn-based protocol</h3>
-<p>The protocol utilizes Edn, a string-based data notation – see <a href="https://github.com/edn-format/edn">https://github.com/edn-format/edn</a>. UTF-8 Edn strings, binary encoded over TCP.</p>
-<p>The protocol defines two message types CONNECT and COMMAND which are
-binary strings consisting of an 8-byte, size prefix followed by the
-CONNECT or COMMAND details.</p>
-<p>Responses are also binary strings with an 8-byte, size prefix.</p>
+<h3><a id="Interoperability_String_protocol_174"></a>Interoperability: String protocol</h3>
+<p>This is a binary-encoded, string protocol used to provide socket-based
+interoperability with JC.</p>
+<p>The protocol defines three message types: CONNECT, CLOSE and COMMAND all
+of which are binary strings consisting of an 8 byte size followed by the
+actual command details.</p>
+<p>Responses are also binary strings with an 8 byte size prefix.</p>
 <p>The CONNECT command initiates a session,</p>
-<pre><code>M = &lt;&lt;&quot;(:connect {:version 1.0})&quot;&gt;&gt;
-</code></pre>
-<p>Size is 25, so the CONNECT message is:</p>
-<pre><code>&lt;&lt;25:8, M/binary&gt;&gt; = 
+<pre><code>M = &lt;&lt;&quot;{connect,{version,\&quot;1.0\&quot;}}&quot;&gt;&gt; 
+
+Size is 25, so the CONNECT message is:
+
+&lt;&lt;25:8, M/binary&gt;&gt; = 
 &lt;&lt;25,40,58,99,111,110,110,101,99,116,32,123,58,118,101,
-  114,115,105,111,110,32,49,46,48,125,41&gt;&gt;
+  114,115,105,111,110,32,49,46,48,125,41&gt;&gt; 
 </code></pre>
 <p>The server will respond to a CONNECT command with either an error or
-the encoded version of {:version 1.0}</p>
-<pre><code>&lt;&lt;13:8, {:version 1.0}/binary&gt;&gt; = 
-&lt;&lt;13,123,118,101,114,115,105,111,110,32,49,46,48,125&gt;&gt;
+the encoded version of {version, 1.0}</p>
+<pre><code>&lt;&lt;15:8, {version,\&quot;1.0\&quot;}/binary&gt;&gt; = 
+&lt;15,123,118,101,114,115,105,111,110,44,34,49,46,48,34,125&gt;&gt;
 </code></pre>
-<p>COMMAND messages consist of an 8-byte prefix followed by the command.</p>
-<p>NOTICE THAT KEYWORDS IN EDN will be convereted to Erlang atoms. Thus,
-Module and Function names (as with all atoms) must be Edn keywords. The form 
-of a COMMAND message must be an Edn list with keywords specifying the desired Module
-and Function followed by a list of arguments, as in: (:module, :fn (args))</p>
-<pre><code>(:jc :put (:evs 1 &quot;a string value&quot;))
-</code></pre>
-<p>A client session might look as follows</p>
-<pre><code>client:send(&quot;(:jc :put (:evs 1 \&quot;a string value\&quot;))&quot;).
-==&gt; {:key 1}
+<p>The CLOSE command closes the socket ending the session</p>
+<pre><code>M = &lt;&lt;&quot;{close}&quot;&gt;&gt;
 
-client:send(&quot;(:jc :get (:evs 1))&quot;).
-==&gt; {:value &quot;a string value&quot;}
+ Size is 7 so the CLOSE message is:
+ &lt;&lt;7,123,99,108,111,115,101,125&gt;&gt;
 </code></pre>
-<p>Edn commands map directly to cache functions with the exception of the
-jc_psub subscription functions which do NOT need a self() parameter since
-the per-session, TCP listener is the process which subscribes. So:</p>
-<pre><code>client:send(&quot;(:jc_psub :map_subscribe (:evs :any :any))&quot;).
-===&gt; ok
+<p>COMMAND messages are string versions of the messages which
+jc_bridge uses only without the self() parameter. For example</p>
+<pre><code>{self(), {put, Map, Key, Value}} becomes 
+{put, Map, Key, Value}
 </code></pre>
-<p>upon an update to the evs map, the client receives,</p>
-<pre><code>{:map_event {:map :evs :key 1 :op delete}}
-{:map_event {:map :evs :key 1 :op write :value :1}}
+<p>The return will be an encoded version of a string representation of the Erlang
+return value. A client session might look as follows:</p>
+<pre><code>client:send(&quot;{put, evs, 1, \&quot;{\\\&quot;value:\\\&quot;:true}\&quot;}&quot;)
+&lt;&lt;&quot;{ok,1}}&quot;&gt;&gt;
+
+client:send(&quot;{get, evs, 1}&quot;),
+&lt;&lt;&quot;{ok, \&quot;{\\\&quot;value\\\&quot;:true}\&quot;&gt;&gt;
 </code></pre>
 ===Configuration===
 <ul>
@@ -285,9 +291,9 @@ numbers on jc_s operations</li>
 <li>Analysis and indexing inititation of JSON query strings</li>
 </ul>
 </li>
-<li>jc_protocol, jc_edn
+<li>jc_protocol
 <ul>
-<li>Erlang -&gt; Edn and protocol modules</li>
+<li>Protocol modules</li>
 </ul>
 </li>
 <li>jc_psub:
@@ -317,18 +323,13 @@ jc functionality</li>
 <li>
 <p>Edit the sys.config and vm.args files in ./config</p>
 <ul>
-<li>
-<p>vm.args: Indicate the correct node names and cookie</p>
-</li>
-<li>
-<p>sys.config: Adjust prarameters as neccesary.</p>
+<li>vm.args: Indicate the correct node names and cookie</li>
+<li>sys.config: Adjust prarameters as neccesary.</li>
+</ul>
 <p><code>[root@db01] ./rebar3 release</code></p>
 <p>or</p>
 <p><code>[root@db01] ./rebar3 prod release</code></p>
 </li>
 </ul>
-</li>
-</ul>
 ===Documentation===
 <p><code>[root@dbo1] ./rebar3 edoc</code></p>
-

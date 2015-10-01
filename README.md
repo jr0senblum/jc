@@ -50,9 +50,9 @@ JC
   * Clients can create and subscribe to arbitrary 'topic's and 
   broadcast arbitrary messages under those topic names
   * Clients can subscribe to node-up and node-down events 
-* Interopability: JSON, binary protocol over TCP
-  * JSON strings can be used over TCP to interoperate with the cache eco-system.
-    UTF-8 JSON strings -> binary -> TCP --- TCP <- binary <- UTF-8 JSON strings  
+* Interopability: Binary string over TCP protocol
+  * Strings can be used over TCP to interoperate with the cache eco-system.
+    UTF-8 strings -> binary -> TCP --- TCP <- binary <- UTF-8 strings  
 * Bridge process that accepts messages from a client indicating
   cache operations, executes the cache operations and returns the
   results to the client. This has been used with JInterface to 
@@ -184,41 +184,42 @@ Responses are also binary strings with an 8 byte size prefix.
 
 The CONNECT command initiates a session, 
 
-    ```M = <<"{connect,{version,\"1.0\"}}">>''' 
+    M = <<"{connect,{version,\"1.0\"}}">> 
 
     Size is 25, so the CONNECT message is:
 
-   ```<<25:8, M/binary>> = 
+    <<25:8, M/binary>> = 
     <<25,40,58,99,111,110,110,101,99,116,32,123,58,118,101,
-      114,115,105,111,110,32,49,46,48,125,41>> '''
+      114,115,105,111,110,32,49,46,48,125,41>> 
 
 The server will respond to a CONNECT command with either an error or
 the encoded version of {version, 1.0}
 
-    ```<<15:8, {version,\"1.0\"}/binary>> = 
+    <<15:8, {version,\"1.0\"}/binary>> = 
     <15,123,118,101,114,115,105,111,110,44,34,49,46,48,34,125>>
 
 The CLOSE command closes the socket ending the session
 
-    ```M = <<"{close}">>''' 
+    M = <<"{close}">>
 
      Size is 7 so the CLOSE message is:
-  ```<<7,123,99,108,111,115,101,125>> '''
+     <<7,123,99,108,111,115,101,125>>
 
 
 COMMAND messages are string versions of the messages which 
-{@link jc_bridge. jc_bridge} only without the self() parameter. For example
-{self(), {put, Map, Key, Value}} becomes simply 
-"{put, Map, Key, Value}"
+jc_bridge uses only without the self() parameter. For example
+
+    {self(), {put, Map, Key, Value}} becomes 
+    {put, Map, Key, Value}
 
 The return will be an encoded version of a string representation of the Erlang 
 return value. A client session might look as follows:
 
-client:send("{put, evs, 1, \"{\\\"value:\\\":true}\"}")
- ==> <<"{ok,1}}">>
+    client:send("{put, evs, 1, \"{\\\"value:\\\":true}\"}")
+    <<"{ok,1}}">>
 
-client:send("{get, evs, 1}"),
-==> <<"{ok, \"{\\\"value\\\":true}\">>
+    client:send("{get, evs, 1}"),
+    <<"{ok, \"{\\\"value\\\":true}\">>
 
 
 ###Configuration
@@ -237,7 +238,7 @@ client:send("{get, evs, 1}"),
   numbers on jc_s operations
 * jc_analyzer
   * Analysis and indexing inititation of JSON query strings
-* jc_protocol, jc_edn
+* jc_protocol
   * Erlang -> Edn and protocol modules
 * jc_psub: 
   * Pub / Sub of cache write and delete events
