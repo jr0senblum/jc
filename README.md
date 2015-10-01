@@ -240,7 +240,7 @@ might look as follows:
 * jc_analyzer
   * Analysis and indexing inititation of JSON query strings
 * jc_protocol
-  * Erlang -> Edn and protocol modules
+  * Socket processing of messages and Erlang -> JSON
 * jc_psub: 
   * Pub / Sub of cache write and delete events
   * On-demand, ad-hoc topic events

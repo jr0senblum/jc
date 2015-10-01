@@ -7,11 +7,11 @@ JC
 @version v0.9.0
 @title Welcome to JCache
 
-@doc 
-== JC == 
-==Erlang, Distributable, In-Memory Cache==
 
-=== Pub/Sub; JSON-Query; Consistency Assist; and Simple, TCP Interoperability Protocol. ===
+== JC == 
+== Erlang, Distributable, In-Memory Cache ==
+
+=== Pub/Sub; JSON-Query; Consistency Assist; and Simple, TCP Interoperability Protocol ===
 <p>###Features</p>
 <ul>
 <li>Cache entries are Map, Key, Value, [TTL], [Sequence]

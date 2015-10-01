@@ -40,8 +40,8 @@
 %%% example {self(), {put, Map, Key, Value}} becomes 
 %%% {put, Map, Key, Value}
 %%%
-%%% The return will be an encoded version of a string representation of the Erlang 
-%%% return value. A client session might look as follows:
+%%% The return will be an encoded version of a string representation of the 
+%%% Erlang return value. A client session might look as follows:
 %%%
 %%%     ```client:send("{put, evs, 1, \"a string value\"}")
 %%%     ==> <<"{\"ok\":1}">>
@@ -74,9 +74,6 @@
 
 -define(SERVER, ?MODULE).
 -define(TIMEOUT, infinity).
--define(DIG(D), 
-	D >= <<$0>> andalso 
-	D=< <<$9>>).
 
 -record(jc_p, {socket, 
 	       trans               :: 'jc_protocol', 
@@ -125,7 +122,7 @@ init(Ref, S, T, _Opts = [Port]) ->
     ok = proc_lib:init_ack({ok, self()}),
     ok = ranch:accept_ack(Ref),
     ok = T:setopts(S, [{active, once}]),
-    lager:debug("~p(~p): up and listening on ~p.",
+    lager:info("~p(~p): up and listening on port ~p.",
 	       [?MODULE, self(), Port]),
 
     gen_server:enter_loop(?MODULE, [],
@@ -168,7 +165,7 @@ handle_info(Msg, State = #jc_p{socket=S, trans = T}) ->
 -spec handle_call(term(), {pid(), _}, #jc_p{}) -> {reply, ok, #jc_p{}}.
 
 handle_call(Request, _From, State) ->
-    lager:warning("~p: unrecognized handle_call message: ~p.",
+    lager:warning("~p: unrecognized handle_call request: ~p.",
 		  [?MODULE, Request]),
 	{reply, ok, State}.
 
@@ -180,7 +177,7 @@ handle_call(Request, _From, State) ->
 -spec handle_cast(any(), #jc_p{}) -> {noreply, #jc_p{}}.
 
 handle_cast(Msg, State) ->
-    lager:warning("~p: unexpected cast request: ~p.", [?MODULE, Msg]),
+    lager:warning("~p: unexpected cast message: ~p.", [?MODULE, Msg]),
     {noreply, State}.
 
 
