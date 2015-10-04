@@ -7,315 +7,245 @@ JC
 @version v0.9.0
 @title Welcome to JCache
 
-
+@doc
 == JC == 
 == Erlang, Distributable, In-Memory Cache ==
-
-=== Pub/Sub; JSON-Query; Consistency Assist; and Simple, TCP Interoperability Protocol ===
-<p>###Features</p>
+=== JSON-Query; Consistency Assist; and Simple, TCP Interoperability Protocol ===
+=== Features ===
 <ul>
-<li>Cache entries are Map, Key, Value, [TTL], [Sequence]
-<ul>
+<li>Cache entries are Map, Key, Value, [TTL], [Sequence]</li>
 <li>Maps represent a name-space for Keys - similar to the notion
-of ‘bucket’
-in other caching systems</li>
-<li>{Map, Key} must be unique</li>
+    of 'bucket'
+    in other caching systems</li>
 <li>Maps, Keys and Values can be any Erlang term</li>
 <li>TTL is time-to-live in seconds</li>
-</ul>
-</li>
-<li>Consistency Assist through Serialization: An alternative API
-allows for a sequence-number parameter on the put/x, evict/x,
-match/x and remove/x operations. Operations whose sequence
-number is lower than the current, per-map max are disallowed
-thereby ensuring, for example, that stale puts do not
-overwrite newer ones due to the newer one beating the stale
-ones to the cache.</li>
+<li>Consistency Assist through Sequence Number: An alternative API
+    allows for a sequence-number parameter on the put/x, evict/x,
+    match/x and remove/x operations. Operations whose sequence
+    number is lower than the current, per-map max are disallowed 
+    thereby ensuring, for example, that stale puts do not 
+    overwrite newer ones due to the newer one beating the stale
+    ones to the cache.</li>
 <li>JSON Query Support</li>
 <li>Query by JSON: When Values are JSON, evict_match/2,
-evict_all_match/1 and values_match/2 search or evict
-keys whose JSON value, at a location specificed by a java-style, dot-path
-string, equals the given value. That is,
-jc:values_match(bed, “id.type=3”) would return all values for Keys in the
-bed ‘Map’ whose JSON value was an object with an “id”:3 in the top-level.</li>
+    evict_all_match/1 and values_match/2 search or evict
+    keys whose JSON value, at a location specificed by a java-style, dot-path
+    string, equals the given value. That is,
+    jc:values_match(bed, "id.type=3") would return all values for Keys in the
+    bed 'Map' whose JSON value was an object with an "id":3 in the top-level.</li>
 <li>Ad-hoc, Index Support: In order to support faster
-operations, (2-3 orders of magnitude), each map can have up to four,
-dot-path, strings configured for which jc will provide
-index support.</li>
+    operations, (2-3 orders of magnitude), each map can have up to four,
+    dot-path, strings configured for which jc will provide 
+    index support.</li>
 <li>Auto Index Recognition - Frequently used JSON querries will be automatically
-detected and indexing initiated.</li>
-<li>User Controlled Eviction
-<ul>
+    detected and indexing initiated.</li>
+<li>User Controlled Eviction</li>
 <li>Map-level TTL: A job runs at configured intervals and removes
-items whose create-date is older than a map-specific, configured
-number of seconds.</li>
+  items whose create-date is older than a map-specific, configured 
+  number of seconds.</li>
 <li>Item-level TTL: PUTS can include a TTL which defines when the
-item should be evicted. Used for shorter TTLs, as an exception
-to a Map-level TTL, or when more precision is required than
-offered by the Map-level TTL.</li>
-</ul>
-</li>
-<li>Pub/Sub
-<ul>
+  item should be evicted. Used for shorter TTLs, as an exception
+  to a Map-level TTL, or when more precision is required than 
+  offered by the Map-level TTL.</li>
+<li>Pub/Sub </li>
 <li>Clients can subscribe to Map events for a specific key or
-any key and for write, delete or either operations</li>
-<li>Clients can create and subscribe to arbitrary 'topic’s and
-broadcast arbitrary messages under those topic names</li>
-<li>Clients can subscribe to node-up and node-down events</li>
-</ul>
-</li>
-<li>Interopability: Binary string over TCP returning JSON
-</li>
+  for any key,  and for write, delete or either operations</li>
+<li>Clients can create and subscribe to arbitrary 'topics' and 
+  broadcast arbitrary messages under those topic names</li>
+<li>Clients can subscribe to node-up and node-down events </li>
+<li>Interopability: Binary string over TCP returning JSON</li>
 <li>Bridge process that accepts messages from a client indicating
-cache operations, executes the cache operations and returns the
-results to the client. This has been used with JInterface to
-interoperate with CLOJURE and Java clients</li>
+  cache operations, executes the cache operations and returns the
+  results to the client. This has been used with JInterface to 
+  interoperate with CLOJURE and Java clients</li>
 <li>Fine-grained logging via lager</li>
 </ul>
-===Cache Functions (jc)===
+=== Cache Functions (jc) ===
 <ul>
-<li>Create
-<ul>
+<li>Create</li>
 <li>put(Map, Key, Value, [TTLSecs]) -&gt; {ok, Key} | {error, badarg}</li>
-<li>put_all(Map, [{K,V},{K,V},…], [TTLSecs]) -&gt; {ok, CountOfSuccessfulPuts}} |
-{error, badarg}</li>
-</ul>
-</li>
-<li>Delete
-<ul>
+<li>put_all(Map, [{K,V},{K,V},...], [TTLSecs]) -&gt; {ok, CountOfSuccessfulPuts} |
+                                                  {error, badarg}</li>
+<li>Delete</li>
 <li>evict(Map, Key) -&gt; ok</li>
-<li>evict_all_match(Criteria = “Json.Path.Match=Value”) -&gt; ok</li>
+<li>evict_all_match(Criteria = "Json.Path.Match=Value") -&gt; ok</li>
 <li>evict_map_since(Map, Age_In_Secs) -&gt; ok</li>
-<li>evict_match(Map, Criteria = “Json.Path.Match=Value”) -&gt; ok</li>
-<li>remove_items(Map, Keys) -&gt; {ok, [{K, V}, …]} for each {K, V} deleted.</li>
-</ul>
-</li>
-<li>Retrieve
-<ul>
-<li>get(Map, Key) -&gt; {ok, {value, Value}} | miss</li>
-<li>get_all(Map, [K1, K2, …]) -&gt; {ok, {Found=[{K1,V1},…], Misses=[K2,…]}}</li>
-<li>key_set(Map) -&gt; {ok, [K1, K2, …]} for each Key in the Map</li>
-<li>values(Map) -&gt; {ok, [V1, V2, …]} for each Value in the Map</li>
-<li>values_match(Map, Criteria=“JSon.Path.Match=Value”) -&gt;
-{ok, [{K1,V1}, {K2,V2}, …]}</li>
-</ul>
-</li>
-<li>Flush
-<ul>
+<li>evict_match(Map, Criteria = "Json.Path.Match=Value") -&gt; ok</li>
+<li>remove_items(Map, Keys) -&gt; {ok, [{K, V}, ...]} for each {K, V} deleted.</li>
+<li>Retrieve</li>
+<li>get(Map, Key) -&gt; {ok, Value} | miss</li>
+<li>get_all(Map, [K1, K2, ...]) -&gt; {ok, {Found=[{K1,V1},...], Misses=[K2,...]}}</li>
+<li>key_set(Map) -&gt; {ok, [K1, K2, ...]} for each Key in the Map</li>
+<li>values(Map) -&gt; {ok, [V1, V2, ...]} for each Value in the Map</li>
+<li>values_match(Map, Criteria="JSon.Path.Match=Value") -&gt;
+                                                  {ok, [{K1,V1}, {K2,V2}, ...]}</li>
+<li>Flush</li>
 <li>clear(Map) -&gt; ok</li>
 <li>flush() -&gt; ok</li>
-<li>flush(silent) -&gt; ok &lt;-- Does not send alerts to subscribers</li>
-</ul>
-</li>
-<li>Predicates
-<ul>
+<li>flush(silent) -&gt; ok, Does not send alerts to subscribers</li>
+<li>Predicates</li>
 <li>contains_key(Map, Key) -&gt; true | false.</li>
-</ul>
-</li>
-<li>Meta
-<ul>
-<li>cache_nodes() -&gt; {{active, [Node1,… ]}, {configured, [Node1,… ]}}</li>
-<li>cache_size() -&gt; {size, [{TableName, RecordCnt, Words}],…}</li>
+<li>Meta</li>
+<li>cache_nodes() -&gt; {{active, [Node1,... ]}, {configured, [Node1,... ]}}</li>
+<li>cache_size() -&gt; {size, [{TableName, RecordCnt, Words}],...}</li>
 <li>map_size(Map) -&gt; {records, Count}</li>
-<li>maps() -&gt; {maps, [Map1, Map2,…]}</li>
+<li>maps() -&gt; {maps, [Map1, Map2,...]}</li>
 <li>up() -&gt; {uptime, [{up_at, String},{now, String},
-{up_time, {D, {H, M, S}}}]</li>
+                      {up_time, {D, {H, M, S}}}]</li>
 </ul>
-</li>
-</ul>
-<h3><a id="Consistacny_Supported_Functions_jc_s_96"></a>Consistacny Supported Functions (jc_s)</h3>
-<p>Identical to the Create and Evict family of functions above, except:</p>
+=== Consistacny Supported Functions (jc_s) ===
+<p>Identical to the Create and Evict family of functions of the jc module (see above),
+except:</p>
 <ul>
 <li>An additional sequence parameter, which is expected to be a monotonically
-incresing integer (with respect to a given Map), is used to disalow
-“out of sequence” operations</li>
-<li>Functions return {error, out_of_seq} if out of sequence operation is attempted
-<ul>
+  incresing integer (with respect to a given Map), used to disalow
+  "out of sequence" operations</li>
+<li>Functions return {error, out_of_seq} if out of sequence operation is attempted</li>
 <li>evict(Map, Key, Seq)</li>
-<li>evict_all_match(Criteria = “Json.Path.Match=Value”, Seq)</li>
-<li>evict_match(Map, Criteria = “Json.Path.Match=Value”, Seq)</li>
-<li>put(Map, Key, Value, [TTLSecs], Seq)</li>
-<li>put_all(Map, [{K,V},{K,V},…], [TTLSecs], Seq)</li>
+<li>evict_all_match(Criteria = "Json.Path.Match=Value", Seq) </li>
+<li>evict_match(Map, Criteria = "Json.Path.Match=Value", Seq)</li>
+<li>put(Map, Key, Value, [TTLSecs], Seq) </li>
+<li>put_all(Map, [{K,V},{K,V},...], [TTLSecs], Seq)</li>
 <li>remove_items(Map, Keys, Seq)</li>
-</ul>
-</li>
-<li>Meta Functions
-<ul>
-<li>sequence() -&gt; [{Map, Highest_Number},… ]</li>
+<li>Meta Functions</li>
+<li>sequence() -&gt; [{Map, Highest_Number},... ]</li>
 <li>sequence(Map) -&gt; Hightest_Number</li>
 </ul>
-</li>
-</ul>
-===Eviction Manager Functions (jc_eviction_manager)===
+=== Eviction Manager Functions (jc_eviction_manager) ===
 <ul>
 <li>set_max_ttl(Map, Secs) -&gt; ok | {error, badarg}</li>
-<li>get_max_ttls() -&gt; [{Map, Secs}, …]</li>
+<li>get_max_ttls() -&gt; [{Map, Secs}, ...]</li>
 </ul>
-===Pub/Sub Functions (jc_psub)===
+=== Pub/Sub Functions (jc_psub) ===
 <ul>
+<li>map_subscribe(Pid, Map, Key|any, write|delete|any) -&gt; ok | {error, badarg}</li>
+<li>map_unsubscribe(Pid, Map, Key|any, write|delete|any) -&gt; ok | {error, badarg}</li>
 <li>
-<p>map_subscribe(Pid, Map, Key|any, write|delete|any) -&gt; ok |
-{error, badarg}</p>
-<ul>
-<li>client will receive
-<ul>
-<li>{map_event, {Map, Key, delete}}, or</li>
-<li>{map_event, {Map, key, write, Value}</li>
+<p>client receives</p>
+<p><code>{map_event, {Map, Key, delete}}</code>
+or
+<code>{map_event, {Map, key, write, Value}</code>
+<em> topic_subscribe(Pid, Topic, Value) -&gt; ok | {error, badarg}
+</em> topic_unsubscribe(Pid, Topic, Value) -&gt; ok | {error, badarg}
+<em> client receives: {topic_event, {Topic, Value}}
+</em> topic_event(Topic, Value) -&gt; ok
+  * Broadcasts Value to all
+  subscribers of Topic
+* topic_subscribe(Pid, jc_node_events, any) -&gt; ok 
+  * subscribtes the user
+  to node up and node down events:</p>
+</li>
 </ul>
-</li>
-</ul>
-</li>
-<li>
-<p>map_unsubscribe(Pid, Map, Key|any, write|delete|any) -&gt; ok |
-{error, badarg}</p>
-</li>
-<li>
-<p>topic_subscribe(Pid, Topic, Value) -&gt; ok | {error, badarg}</p>
-<ul>
-<li>client will receive {topic_event, {Topic, Value}}</li>
-</ul>
-</li>
-<li>
-<p>topic_unsubscribe(Pid, Topic, Value) -&gt; ok | {error, badarg}</p>
-</li>
-<li>
-<p>topic_event(Topic, Value) -&gt; ok. &lt;-- Broadcasts Value to all
-subscribers of Topic</p>
-</li>
-<li>
-<p>topic_subscribe(Pid, jc_node_events, any) -&gt; ok subscribtes the user
-to node up and node down events:</p>
 <p><code>{jc_node_events, {nodedown, DownedNode, [ActiveNodes],[ConfiguredNodes]}}</code></p>
 <p><code>{jc_node_events, {nodeup, UppedNode, [ActiveNodes],[ConfiguredNodes]}}</code></p>
-</li>
-</ul>
-===Indexing Functions (jc_store)===
+=== Indexing Functions (jc_store) ===
 <ul>
-<li>start_indexing(Map, Path={bed,&quot;<a href="http://menu.id">menu.id</a>&quot;}) -&gt; ok |
-{error, no_indexes_available} |
-{error, Term}</li>
-<li>stop_indexing(Map, Path={bed,“menu”,“id”}) -&gt; ok</li>
-<li>indexes(Map) -&gt; {indexes, [{{Map, Path}, Position},…]} for all indexes
-of given Map</li>
-<li>indexes() -&gt; {indexes, [{{Map, Path}, Position},…]} for all indexes</li>
+<li>start_indexing(Map, Path={bed,"menu.id"}) -&gt; ok |
+                                               {error, no_indexes_available} |
+                                   {error, Term}</li>
+<li>stop_indexing(Map, Path={bed,"menu","id"}) -&gt; ok</li>
+<li>indexes(Map) -&gt; {indexes, [{{Map, Path}, Position},...]} for all indexes
+                                                  of given Map</li>
+<li>indexes() -&gt; {indexes, [{{Map, Path}, Position},...]} for all indexes</li>
 </ul>
-===Bridge Functions (jc_bridge)===
+=== Bridge Functions (jc_bridge) ===
 <ul>
-<li>
-<p>All functions from the jc, jc_s, jc_eviction_manager, jc_psub
-and jc_store are supported and are of the form:</p>
+<li>All functions from the jc, jc_s, jc_eviction_manager, jc_psub
+ and jc_store are supported and are of the form:</li>
+</ul>
 <p><code>{From, {Fn, P1, P2,...}}</code></p>
-<p>for each paramater, as in</p>
-<p><code>jc_bridge ! {Pid, {put, Map, Key, Value}}</code></p>
-</li>
-<li>
-<p>Additionally,</p>
-<p>{From, {node_topic_sub}} -&gt; ok | {error, badarg},
-client will recieve:</p>
-<p><code>{jc_node_events, {nodedown, DownedNode, [ActiveNodes],[ConfiguredNodes]}}</code></p>
-<p>or</p>
-<p><code>{jc_node_events, {nodeup, UppedNode, [ActiveNodes],[ConfiguredNodes]}}</code></p>
-<p>{From, {node_topic_unsub}} -&gt; ok.</p>
-</li>
+<pre><code>for each paramater, as in
+
+`jc_bridge ! {Pid, {put, Map, Key, Value}}'
+</code></pre>
+<ul>
+<li>Additionally, </li>
 </ul>
-<h3><a id="Interoperability_String_protocol_174"></a>Interoperability: String protocol</h3>
+<p>{From, {node_topic_sub}} -&gt; ok | {error, badarg}, 
+  client will recieve:</p>
+<p><code>{jc_node_events, {nodedown, DownedNode, [ActiveNodes],[ConfiguredNodes]}}</code></p>
+<pre><code>or
+
+`{jc_node_events, {nodeup, UppedNode, [ActiveNodes],[ConfiguredNodes]}}'
+</code></pre>
+<p>{From, {node_topic_unsub}} -&gt; ok.</p>
+=== Interoperability: String protocol ===
 <p>This is a binary-encoded, string protocol used to provide socket-based
 interoperability with JC. </p>
-
 <p>All messages to the cache system are string representations of a tuple, All
-messages form the caching system to the client are JSON
-</p>
-
-<p> The protocol defines three message types: CONNECT, CLOSE and COMMAND all 
-of which are binary strings consisting of an 8 byte size followed by the
-actual command details.
-</p>
-<p>Responses are also binary strings with an 8 byte size prefix.
-<p>The CONNECT command initiates a session,</p>
-<pre><code>M = &lt;&lt;&quot;{connect,{version,\&quot;1.0\&quot;}}&quot;&gt;&gt; 
+messages form the caching system to the client are JSON</p>
+<p>The protocol defines three message types: CONNECT, CLOSE and COMMAND all 
+of which are binary strings consisting of an 8-byte size followed by the
+actual command messages.</p>
+<p>Responses are also binary strings with an 8-byte size prefix.</p>
+<p>The CONNECT command initiates a session, </p>
+<pre><code>M = &lt;&lt;"{connect,{version,\"1.0\"}}"&gt;&gt;
 
 Size is 25, so the CONNECT message is:
 
 &lt;&lt;25:8, M/binary&gt;&gt; = 
 &lt;&lt;25,40,58,99,111,110,110,101,99,116,32,123,58,118,101,
-  114,115,105,111,110,32,49,46,48,125,41&gt;&gt; 
+  114,115,105,111,110,32,49,46,48,125,41&gt;&gt;
 </code></pre>
 <p>The server will respond to a CONNECT command with either an error or
-the encoded version of {&lt;&lt;&quot;version&lt;&lt;&quot;:&lt;&lt;&quot;1.0&lt;&lt;&quot;}</p>
-<pre><code>&lt;&lt;15:8, {version,\&quot;1.0\&quot;}/binary&gt;&gt; = 
-&lt;5,123,34,118,101,114,115,105,111,110,34,58,49,46,48,125&gt;&gt;
+the encoded version of {"version":" "1.0""}</p>
+<pre><code>&lt;&lt;15:8, &lt;&lt;"{\"version\":1.0}"&gt;&gt; = 
+&lt;&lt;15,123,34,118,101,114,115,105,111,110,34,58,49,46,48,125&gt;&gt;
 </code></pre>
-<p>The CLOSE command closes the socket ending the session</p>
-<pre><code>M = &lt;&lt;&quot;{close}&quot;&gt;&gt;
+<p>The CLOSE command closes the socket, ending the session</p>
+<pre><code>M = &lt;&lt;"{close}"&gt;&gt;
 
  Size is 7 so the CLOSE message is:
  &lt;&lt;7,123,99,108,111,115,101,125&gt;&gt;
 </code></pre>
-<p>COMMAND messages are string versions of the tuple-messages which
+<p>COMMAND messages are string versions of the tuple-messages which 
 jc_bridge uses only without the self() parameter. For example</p>
 <pre><code>{self(), {put, Map, Key, Value}} becomes 
 {put, Map, Key, Value}
 </code></pre>
-<p>The return will be an encoded version of a JSON string representation of the Erlang
-return value.</p>
-===Configuration===
+<p>The return will be an encoded version of a JSON string. A client session 
+might look as follows:</p>
+<pre><code>client:send("{put, evs, 1, \"{\\\"value:\\\":true}\"}")
+&lt;&lt;"{\"ok\":1}"&gt;&gt;
+
+client:send("{get, evs, 1}"),
+&lt;&lt;"{\"ok\":"{\\\"value\\\":true}\"}"&gt;&gt;
+</code></pre>
+=== Configuration ===
 <ul>
 <li>Application configuration is in sys.config which is heavily
-commented</li>
+  commented</li>
 <li>Cookie, node-name and auto-restart of VM controlled by vm.args</li>
 </ul>
-===Application Modules===
+=== Application Modules ===
 <ul>
-<li>jc_cluster
-<ul>
+<li>jc_cluster</li>
 <li>Simple, mnesia-based, cluster creation and management</li>
-</ul>
-</li>
-<li>jc, jc_s, jc_store, jc_eviction_manager
-<ul>
+<li>jc, jc_s, jc_store, jc_eviction_manager</li>
 <li>Caching operations, Key-specific and Map-level TTLs</li>
-</ul>
-</li>
-<li>jc_sequence
-<ul>
-<li>Singleton service enforcing strictly monotonic sequence
-numbers on jc_s operations</li>
-</ul>
-</li>
-<li>jc_analyzer
-<ul>
+<li>jc_sequence</li>
+<li>Singleton service enforcing strictly monotonic sequence 
+  numbers on jc_s operations</li>
+<li>jc_analyzer</li>
 <li>Analysis and indexing inititation of JSON query strings</li>
-</ul>
-</li>
-<li>jc_protocol
-<ul>
-<li>Protocol modules</li>
-</ul>
-</li>
-<li>jc_psub:
-<ul>
+<li>jc_protocol</li>
+<li>Socket processing of messages and Erlang -&gt; JSON</li>
+<li>jc_psub: </li>
 <li>Pub / Sub of cache write and delete events</li>
 <li>On-demand, ad-hoc topic events</li>
 <li>Predefined, <em>jc_node_events</em> topic provides subscribers
-node-up and node-down notifications</li>
-</ul>
-</li>
-<li>jc_bridge
-<ul>
+  node-up and node-down notifications</li>
+<li>jc_bridge</li>
 <li>Server that acts as a proxy between an external process and
-jc functionality</li>
+  jc functionality</li>
 </ul>
-</li>
-</ul>
-===Build Instructions===
+=== Build Instructions ===
 <ul>
-<li>
-<p>Ensure that Erlang 17 or higher is installed</p>
-</li>
-<li>
-<p>Get the Source Code from Stash</p>
+<li>Ensure that Erlang 17 or higher is installed</li>
+<li>Get the Source Code from Stash</li>
+</ul>
 <p><code>[root@db01] git clone https://github.com/jr0senblum/jc.git</code></p>
-</li>
+<ul>
 <li>
 <p>Edit the sys.config and vm.args files in ./config</p>
 <ul>
@@ -327,5 +257,5 @@ jc functionality</li>
 <p><code>[root@db01] ./rebar3 prod release</code></p>
 </li>
 </ul>
-===Documentation===
+=== Documentation ===
 <p><code>[root@dbo1] ./rebar3 edoc</code></p>

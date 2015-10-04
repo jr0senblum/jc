@@ -222,7 +222,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 handle_data(Data, #jc_p{trans = T, socket = S, connected = C} = State) ->
     try
-	do_command(Data, State)
+	handle(Data, State)
     catch
 	throw:{fatal, F} ->
 	    T:send(S, marshal({error, {protocol_error, F}})),
@@ -237,41 +237,41 @@ handle_data(Data, #jc_p{trans = T, socket = S, connected = C} = State) ->
 	
 
 %% -----------------------------------------------------------------------------
-%% Get Size Header, Get Size bytes, Execute Command, Repeat. When no more bytes,
-%% save what has been retrieved thus far in the State and return.
+%% Get Size Header, Get size number of bytes, Execute Command, Repeat. When no
+%% more bytes, save what has been retrieved thus far in the State and return.
 %%
--spec do_command(Data::binary(), OldState::#jc_p{}) -> NewState::#jc_p{}.
+-spec handle(Data::binary(), OldState::#jc_p{}) -> NewState::#jc_p{}.
 
-do_command(<<>>, State) ->
+handle(<<>>, State) ->
     State;
 
-do_command(<<Size:8/integer-unit:8, C/binary>>, #jc_p{size = undefined, acc = <<>>} = S) ->
+handle(<<Size:8/integer-unit:8,C/binary>>,#jc_p{size=undefined, acc = <<>>}=S)->
     case byte_size(C) of
 	CSize when CSize >= Size ->
 	    <<Command:Size/binary, Remainder/binary>> = C,
-	    S2 = execute_command(Command, S),
-	    do_command(Remainder, S2);
+	    S2 = execute(Command, S),
+	    handle(Remainder, S2);
 	Less ->
 	    S#jc_p{size = Size - Less, acc = C}
     end;
 
-do_command(Data, #jc_p{size = undefined, acc = Acc} = S) ->
+handle(Data, #jc_p{size = undefined, acc = Acc} = S) ->
     NewData = <<Acc/binary, Data/binary>>,
     case byte_size(NewData) of
 	NSize when NSize >= 8 ->
 	    <<Size:8/integer-unit:8, Remainder/binary>> = NewData,
-	    do_command(Remainder, S#jc_p{size=Size, acc = <<>>});
+	    handle(Remainder, S#jc_p{size=Size, acc = <<>>});
 	_ ->
 	    S#jc_p{acc = NewData, size = undefined}
     end;
 
-do_command(Data, #jc_p{acc = Acc, size = Size} = S) when size /= undefined->
+handle(Data, #jc_p{acc = Acc, size = Size} = S) when size /= undefined->
     case byte_size(Data) of 
 	BSize when BSize >= Size ->
 	    <<Seg:Size/binary, Remainder/binary>> = Data,
 	    Command = <<Acc/binary, Seg/binary>>,
-	    S2 = execute_command(Command, S),
-	    do_command(Remainder, S2#jc_p{acc = <<>>, size = undefined});
+	    S2 = execute(Command, S),
+	    handle(Remainder, S2#jc_p{acc = <<>>, size = undefined});
 	Less ->
 	    S#jc_p{size = Size - Less, acc = <<Acc/binary, Data/binary>>}
     end.
@@ -280,7 +280,7 @@ do_command(Data, #jc_p{acc = Acc, size = Size} = S) when size /= undefined->
 %% -----------------------------------------------------------------------------
 %% Execute the command.
 %
-execute_command(Command, #jc_p{trans=T, socket=S, connected=false} = State)->
+execute(Command, #jc_p{trans=T, socket=S, connected=false} = State)->
     case evaluate(Command) of
 	open_session ->
 	    lager:debug("~p (~p): connected with version: ~p",
@@ -291,7 +291,7 @@ execute_command(Command, #jc_p{trans=T, socket=S, connected=false} = State)->
 	    throw({fatal, missing_connect})
    end;
 
-execute_command(Command, #jc_p{trans=T, socket = S} = State) ->
+execute(Command, #jc_p{trans=T, socket = S} = State) ->
     case evaluate(Command) of
 	close_session -> 
 	    T:send(S, marshal({close, 1.0})),
@@ -315,7 +315,7 @@ execute_command(Command, #jc_p{trans=T, socket = S} = State) ->
 %
 evaluate(Command) ->
     try
-	{ok,Scanned,_} = erl_scan:string(binary_to_list(<<Command/binary, ".">>)),
+	{ok,Scanned,_} = erl_scan:string(binary_to_list(<<Command/binary,".">>)),
 	{ok,Parsed} = erl_parse:parse_exprs(strings_to_binary(Scanned, [])),
 	determine_action(Parsed)
     catch

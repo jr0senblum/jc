@@ -13,10 +13,9 @@ JC
   * Maps represent a name-space for Keys - similar to the notion
     of 'bucket'
     in other caching systems
-  * {Map, Key} must be unique	
   * Maps, Keys and Values can be any Erlang term
   * TTL is time-to-live in seconds
-* Consistency Assist through Serialization: An alternative API
+* Consistency Assist through Sequence Number: An alternative API
     allows for a sequence-number parameter on the put/x, evict/x,
     match/x and remove/x operations. Operations whose sequence
     number is lower than the current, per-map max are disallowed 
@@ -24,17 +23,17 @@ JC
     overwrite newer ones due to the newer one beating the stale
     ones to the cache.
 *  JSON Query Support
-  * Query by JSON: When Values are JSON, evict_match/2,
+   * Query by JSON: When Values are JSON, evict_match/2,
     evict_all_match/1 and values_match/2 search or evict
     keys whose JSON value, at a location specificed by a java-style, dot-path
     string, equals the given value. That is,
     jc:values_match(bed, "id.type=3") would return all values for Keys in the
     bed 'Map' whose JSON value was an object with an "id":3 in the top-level.
-  * Ad-hoc, Index Support: In order to support faster
+   * Ad-hoc, Index Support: In order to support faster
     operations, (2-3 orders of magnitude), each map can have up to four,
     dot-path, strings configured for which jc will provide 
     index support.
-  * Auto Index Recognition - Frequently used JSON querries will be automatically
+   * Auto Index Recognition - Frequently used JSON querries will be automatically
     detected and indexing initiated.
 * User Controlled Eviction
   * Map-level TTL: A job runs at configured intervals and removes
@@ -46,8 +45,8 @@ JC
   offered by the Map-level TTL.
 * Pub/Sub 
   * Clients can subscribe to Map events for a specific key or
-  any key and for write, delete or either operations
-  * Clients can create and subscribe to arbitrary 'topic's and 
+  for any key,  and for write, delete or either operations
+  * Clients can create and subscribe to arbitrary 'topics' and 
   broadcast arbitrary messages under those topic names
   * Clients can subscribe to node-up and node-down events 
 * Interopability: Binary string over TCP returning JSON
@@ -62,7 +61,7 @@ JC
 ###Cache Functions (jc)
 * Create
   * put(Map, Key, Value, [TTLSecs]) -> {ok, Key} | {error, badarg}
-  * put_all(Map, [{K,V},{K,V},...], [TTLSecs]) -> {ok, CountOfSuccessfulPuts}} |
+  * put_all(Map, [{K,V},{K,V},...], [TTLSecs]) -> {ok, CountOfSuccessfulPuts} |
                                                   {error, badarg}
 * Delete
   * evict(Map, Key) -> ok
@@ -71,7 +70,7 @@ JC
   * evict_match(Map, Criteria = "Json.Path.Match=Value") -> ok
   * remove_items(Map, Keys) -> {ok, [{K, V}, ...]} for each {K, V} deleted.
 * Retrieve
-  * get(Map, Key) -> {ok, {value, Value}} | miss
+  * get(Map, Key) -> {ok, Value} | miss
   * get_all(Map, [K1, K2, ...]) -> {ok, {Found=[{K1,V1},...], Misses=[K2,...]}}
   * key_set(Map) -> {ok, [K1, K2, ...]} for each Key in the Map
   * values(Map) -> {ok, [V1, V2, ...]} for each Value in the Map
@@ -80,7 +79,7 @@ JC
 * Flush
   * clear(Map) -> ok
   * flush() -> ok
-  * flush(silent) -> ok <-- Does not send alerts to subscribers
+  * flush(silent) -> ok, Does not send alerts to subscribers
 * Predicates
   * contains_key(Map, Key) -> true | false.
 * Meta
@@ -93,9 +92,11 @@ JC
 
 
 ### Consistacny Supported Functions (jc_s)
-Identical to the Create and Evict family of functions above, except:
+Identical to the Create and Evict family of functions of the jc module (see above),
+except:
+
 * An additional sequence parameter, which is expected to be a monotonically
-  incresing integer (with respect to a given Map), is used to disalow
+  incresing integer (with respect to a given Map), used to disalow
   "out of sequence" operations
 * Functions return {error, out_of_seq} if out of sequence operation is attempted
   * evict(Map, Key, Seq)
@@ -116,19 +117,21 @@ Identical to the Create and Evict family of functions above, except:
 
 
 ###Pub/Sub Functions (jc_psub)
-* map_subscribe(Pid, Map, Key|any, write|delete|any) -> ok |
-                                                   {error, badarg}
-  * client will receive
-    * {map_event, {Map, Key, delete}}, or
-    * {map_event, {Map, key, write, Value}
-* map_unsubscribe(Pid, Map, Key|any, write|delete|any) -> ok |
-                                                   {error, badarg}
+* map_subscribe(Pid, Map, Key|any, write|delete|any) -> ok | {error, badarg}
+* map_unsubscribe(Pid, Map, Key|any, write|delete|any) -> ok | {error, badarg}
+  * client receives
+  
+    `{map_event, {Map, Key, delete}}`
+    or
+    `{map_event, {Map, key, write, Value}`
 * topic_subscribe(Pid, Topic, Value) -> ok | {error, badarg}
-  * client will receive {topic_event, {Topic, Value}}
 * topic_unsubscribe(Pid, Topic, Value) -> ok | {error, badarg}
-* topic_event(Topic, Value) -> ok. <-- Broadcasts Value to all
+    * client receives: {topic_event, {Topic, Value}}
+* topic_event(Topic, Value) -> ok
+  * Broadcasts Value to all
   subscribers of Topic
-* topic_subscribe(Pid, jc_node_events, any) -> ok subscribtes the user
+* topic_subscribe(Pid, jc_node_events, any) -> ok 
+  * subscribtes the user
   to node up and node down events:
   
   `{jc_node_events, {nodedown, DownedNode, [ActiveNodes],[ConfiguredNodes]}}`
@@ -178,10 +181,10 @@ All messages to the cache system are string representations of a tuple, All
 messages form the caching system to the client are JSON
 
 The protocol defines three message types: CONNECT, CLOSE and COMMAND all 
-of which are binary strings consisting of an 8 byte size followed by the
-actual command details.
+of which are binary strings consisting of an 8-byte size followed by the
+actual command messages.
 
-Responses are also binary strings with an 8 byte size prefix.
+Responses are also binary strings with an 8-byte size prefix.
 
 The CONNECT command initiates a session, 
 
@@ -199,7 +202,7 @@ the encoded version of {"version":" "1.0""}
     <<15:8, <<"{\"version\":1.0}">> = 
     <<15,123,34,118,101,114,115,105,111,110,34,58,49,46,48,125>>
 
-The CLOSE command closes the socket ending the session
+The CLOSE command closes the socket, ending the session
 
     M = <<"{close}">>
 
@@ -207,7 +210,7 @@ The CLOSE command closes the socket ending the session
      <<7,123,99,108,111,115,101,125>>
 
 
-COMMAND messages are string versions of the tuple- messages which 
+COMMAND messages are string versions of the tuple-messages which 
 jc_bridge uses only without the self() parameter. For example
 
     {self(), {put, Map, Key, Value}} becomes 
