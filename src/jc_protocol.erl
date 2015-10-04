@@ -5,34 +5,38 @@
 %%%
 %%% JC Protocol 1.0
 %%% This is a binary-encoded, string protocol used to provide socket-based
-%%% interoperability with JC. 
-%%% 
-%%% The protocol defines three message types: CONNECT, CLOSE and COMMAND all 
-%%% of which are binary strings consisting of an 8 byte size followed by the
-%%% actual command details.
+%%% interoperability with JC. Incoming messages are string representation
+%%% of a tuple, responses are JSON.
 %%%
-%%% Responses are also binary strings with an 8 byte size prefix.
+%%% The protocol defines three message types: CONNECT, CLOSE and COMMAND all 
+%%% of which are binary strings consisting of an 8 byte, big endian, unsigned
+%%% integer size of bytes followed by the actual command details.
+%%%
+%%% Responses are also binary strings with an 8 byte, big endian, unsigned,
+%%% integer size prefix.
 %%%
 %%% The CONNECT command initiates a session, 
 %%%
-%%% ```M = <<"{\"connect\":,{\"version\":\"1.0\"}}">>''' 
+%%% ```M = <<"{connect,{version,\"1.0\"}}">>''' 
 %%%
-%%% Size is 25, so the CONNECT message is:
-%%% ```<<25:8, M/binary>> = 
-%%%      <<25,40,58,99,111,110,110,101,99,116,32,123,58,118,101,
-%%%        114,115,105,111,110,32,49,46,48,125,41>>  '''
+%%% The byte size is 26, so the CONNECT message is:
+%%% ```<<26:8/integer-unit:8, M/binary>> = 
+%%%    <<0,0,0,0,0,0,0,26,123,99,111,110,110,101,99,116,44,123,118,101,114,
+%%%      115,105,111,110,44,32,34,49,46,48,34,125,125>> '''
 %%%
 %%% The server will respond to a CONNECT command with either an error or
 %%% the encoded version of {\"version\":\"1.0\"}
-%%%   ``` <<15:8, <<"{\"version\":1.0}">> = 
-%%%       <<15,123,34,118,101,114,115,105,111,110,34,58,49,46,48,125>>'''
-%%% 
+%%%   ``` <<17:8/integer-unit:8, <<"{\"version\":1.0}">> = 
+%%%       <0,0,0,0,0,0,0,17,123,34,118,101,114,115,105,111,110,34,
+%%%        58,34,49,46,48,34,125>> '''
+%%%
+%%%
 %%% The CLOSE command closes the socket ending the session
 %%%
 %%% ```M = <<"{close}">>''' 
 %%%
 %%%  Size is 7 so the CLOSE message is:
-%%%  ```<<7,123,99,108,111,115,101,125>> '''
+%%%  ```<0,0,0,0,0,0,0,7,123,99,108,111,115,101,125>>
 %%%
 %%%
 %%% COMMAND messages are string versions of the tuple-messages which 
@@ -76,11 +80,11 @@
 -define(TIMEOUT, infinity).
 
 -record(jc_p, {socket, 
-	       trans               :: 'jc_protocol', 
-	       connected = false   :: boolean(),
-	       command = undefined :: undefined | binary(),
-	       size = undefined    :: undefined | non_neg_integer(),
-	       version = <<"1.0">> :: binary()}).
+	       trans                 :: 'jc_protocol', 
+	       connected = false     :: boolean(),
+	       acc       = undefined :: undefined | binary(),
+	       size      = undefined :: undefined | non_neg_integer(),
+	       version   = <<"1.0">> :: binary()}).
 
 
 
@@ -121,7 +125,7 @@ init([]) -> {ok, undefined}.
 init(Ref, S, T, _Opts = [Port]) ->
     ok = proc_lib:init_ack({ok, self()}),
     ok = ranch:accept_ack(Ref),
-    ok = T:setopts(S, [{active, once}]),
+    ok = T:setopts(S, [{active, once}, {packet,0}]),
     lager:info("~p(~p): up and listening on port ~p.",
 	       [?MODULE, self(), Port]),
 
@@ -130,7 +134,7 @@ init(Ref, S, T, _Opts = [Port]) ->
 				trans = T,
 				connected = false,
 				size = undefined,
-				command = <<>>},
+				acc = <<>>},
 			  ?TIMEOUT).
 
 
@@ -141,8 +145,9 @@ init(Ref, S, T, _Opts = [Port]) ->
 -spec handle_info(any(), #jc_p{}) -> {noreply, #jc_p{}}.
 
 handle_info({tcp, S, Data}, State = #jc_p{socket=S, trans=T})->
-    NewState = protocol(Data, State),
     T:setopts(S, [{active, once}]),
+    NewState = handle_data(Data, State),
+
     {noreply, NewState, ?TIMEOUT};
 
 handle_info({tcp_closed, _Socket}, State) ->
@@ -206,11 +211,11 @@ code_change(_OldVsn, State, _Extra) ->
 
 
 %% =============================================================================
-%% Top-level protcol parser
+%% Top-level protcol parser, returns a new state.
 %%
-protocol(B, #jc_p{trans = T, socket = S} = State) ->
+handle_data(Binary, #jc_p{trans = T, socket = S} = State) ->
     try
-	proto(B, State)
+	do_command(Binary, State)
     catch
 	throw:{fatal, F} ->
 	    T:send(S, marshal({error, {protocol_error, F}})),
@@ -226,67 +231,65 @@ protocol(B, #jc_p{trans = T, socket = S} = State) ->
 %% command from the Socket. Otherwise, we have a part of a command from a
 %% previous socket communication and we continue accumulating.
 %%
-proto(B, #jc_p{command = <<>>}=State) ->
-    <<Size:8, C/binary>> = B,
-    get_command(C, <<>>, State#jc_p{size=Size});
+do_command(<<>>, State) ->
+    State;
 
-proto(B, #jc_p{command=Com}=State) ->
-    get_command(B, Com, State).
+do_command(<<Size:8/integer-unit:8, C/binary>>, #jc_p{size = undefined, acc = <<>>} = S) ->
+    case byte_size(C) of
+	CSize when CSize >= Size ->
+	    <<Command:Size/binary, Remainder/binary>> = C,
+	    S2 = execute_command(Command, S),
+	    do_command(Remainder, S2);
+	Less ->
+	    S#jc_p{size = Size - Less, acc = C}
+    end;
 
+do_command(Bin, #jc_p{size = undefined, acc = Acc} = S) ->
+    NewBin = <<Acc/binary, Bin/binary>>,
+    case byte_size(NewBin) of
+	NSize when NSize >= 8 ->
+	    <<Size:8/integer-unit:8, Remainder/binary>> = NewBin,
+	    do_command(Remainder, S#jc_p{size=Size, acc = <<>>});
+	_ ->
+	    S#jc_p{acc = NewBin, size = undefined}
+    end;
+
+do_command(Bin, #jc_p{acc = Acc, size = Size} = S) when size /= undefined->
+    case byte_size(Bin) of 
+	BSize when BSize >= Size ->
+	    <<Seg:Size/binary, Remainder/binary>> = Bin,
+	    Command = <<Acc/binary, Seg/binary>>,
+	    S2 = execute_command(Command, S),
+	    do_command(Remainder, S2#jc_p{acc = <<>>, size = undefined});
+	Less ->
+	    S#jc_p{size = Size - Less, acc = <<Acc/binary, Bin/binary>>}
+    end.
 
 %% -----------------------------------------------------------------------------
-%% Walk the binary from the socket, accumulating characters until we have 
-%% grabbed the adveritesed number of bytes. Execute the command, and start 
-%% accumulating the next command's bytes if anything is left over.
-%%
-get_command(B, Acc, #jc_p{size = 0} = S) ->
-    parse(B, S#jc_p{command = Acc});
-
-get_command(<<>>, Acc, S) ->
-    S#jc_p{command=Acc};
-
-get_command(<<C:1/binary, B/binary>>, Acc, #jc_p{size=Size}=S) when Size > 0 ->
-    get_command(B, <<Acc/binary, C/binary>>, S#jc_p{size = Size-1}).
-
-
-%% -----------------------------------------------------------------------------
-%% If there has not been a connect yet, thats all we will accept; otherwise, 
-%% we are parsing a command / CLOSE.
+%% If we have a real command (size left = 0), do it.
 %
-parse(B, #jc_p{trans = T, socket = S, command = Com, connected = false}=State)->
+execute_command(Com, #jc_p{trans=T, socket=S, connected=false} = State)->
     case evaluate(Com) of
 	open_session ->
 	    lager:debug("~p (~p): connected with version: ~p",
 			[?MODULE, self(), <<"1.0">>]),
 	    T:send(S, marshal({version, 1.0})),
-	    parse_ballance(B, State#jc_p{connected = true});
-	close_session -> 
-	    self() ! {tcp_closed, S};
+	    State#jc_p{connected = true};
 	_ ->
 	    throw({fatal, missing_connect})
    end;
 
-parse(B, #jc_p{socket = S, command = Com} = State) ->
+execute_command(Com, #jc_p{socket = S} = State) ->
     case evaluate(Com) of
 	close_session -> 
 	    self() ! {tcp_closed, S};
 	{command, R} ->
 	    jc_bridge:do(R),
-	    parse_ballance(B, State);
+	    State;
 	_ ->
 	    throw(bad_command)
     end.
 
-
-%% -----------------------------------------------------------------------------
-%% If no more binary left, reset counters and accumulators for next command, 
-%% else get size and start accumulaitng next command.
-%%
-parse_ballance(<<>>, State) ->
-    reset_state(State);
-parse_ballance(B, State) ->
-    <<Size:8, B2/binary>> = B,
-    get_command(B2, <<>>, State#jc_p{command = <<>>, size=Size}).
 
 
 
@@ -305,7 +308,8 @@ evaluate(Command) ->
 	{ok,Parsed} = erl_parse:parse_exprs(strings_to_binary(Scanned, [])),
 	determine_action(Parsed)
     catch
-	_:_ -> throw(command_syntax)
+	_:_ ->     
+	    throw(command_syntax)
     end.
 
 
@@ -330,7 +334,7 @@ determine_action(_) ->
 
 %% After a COMMAND frame, reset the CONNECTION (state) for next COMMAND frame.
 reset_state(S) ->
-    S#jc_p{command = <<>>,
+    S#jc_p{acc = <<>>,
 	   size = undefined,
 	   connected=true}.
 
@@ -346,7 +350,7 @@ marshal(M) ->
 
 package(Message) ->
     Size = byte_size(Message),
-    <<Size:8, Message/binary>>.
+    <<Size:8/integer-unit:8, Message/binary>>.
 		
 
 
