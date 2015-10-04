@@ -4,51 +4,57 @@
 %%% @doc 
 %%%
 %%% JC Protocol 1.0
-%%% This is a binary-encoded, string protocol used to provide socket-based
-%%% interoperability with JC. Incoming messages are string representation
-%%% of a tuple, responses are JSON.
+%%% A binary-encoded, string protocol used to provide socket-based 
+%%% interoperability with JC. Incoming messages are string representations
+%%% of a tuple. Responses are JSON.
 %%%
-%%% The protocol defines three message types: CONNECT, CLOSE and COMMAND all 
-%%% of which are binary strings consisting of an 8 byte, big endian, unsigned
-%%% integer size of bytes followed by the actual command details.
+%%% The protocol defines three message types: CONNECT, CLOSE and COMMAND all of
+%%% which are binary strings consisting of a header, indicating the size of the
+%%% message in bytes, follwed by the actual message itself. The header is an
+%%% 8-byte, big endian, unsigned integer indicating the size of the message in 
+%%% bytes.
 %%%
-%%% Responses are also binary strings with an 8 byte, big endian, unsigned,
-%%% integer size prefix.
+%%% A RESPONSE is structured the same as messages - 8-byte size header followd
+%%% by the content of the response.
 %%%
 %%% The CONNECT command initiates a session, 
 %%%
 %%% ```M = <<"{connect,{version,\"1.0\"}}">>''' 
 %%%
 %%% The byte size is 26, so the CONNECT message is:
+%%%
 %%% ```<<26:8/integer-unit:8, M/binary>> = 
 %%%    <<0,0,0,0,0,0,0,26,123,99,111,110,110,101,99,116,44,123,118,101,114,
 %%%      115,105,111,110,44,32,34,49,46,48,34,125,125>> '''
 %%%
 %%% The server will respond to a CONNECT command with either an error or
-%%% the encoded version of {\"version\":\"1.0\"}
+%%% the appropriately encoded version of {\"version\":\"1.0\"}
+%%%
 %%%   ``` <<17:8/integer-unit:8, <<"{\"version\":1.0}">> = 
 %%%       <0,0,0,0,0,0,0,17,123,34,118,101,114,115,105,111,110,34,
 %%%        58,34,49,46,48,34,125>> '''
 %%%
 %%%
-%%% The CLOSE command closes the socket ending the session
+%%% The CLOSE command closes the socket, ending the session
 %%%
 %%% ```M = <<"{close}">>''' 
 %%%
 %%%  Size is 7 so the CLOSE message is:
-%%%  ```<0,0,0,0,0,0,0,7,123,99,108,111,115,101,125>>
+%%%  ```<0,0,0,0,0,0,0,7,123,99,108,111,115,101,125>> '''
 %%%
 %%%
 %%% COMMAND messages are string versions of the tuple-messages which 
-%%% {@link jc_bridge. jc_bridge} uses only without the self() parameter. For 
-%%% example {self(), {put, Map, Key, Value}} becomes 
+%%% {@link jc_bridge. jc_bridge} uses, only without the self() parameter. For 
+%%% example the jc_brdige message, {self(), {put, Map, Key, Value}} becomes 
 %%% {put, Map, Key, Value}
 %%%
-%%% The return will be an encoded version of a string representation of the 
-%%% Erlang return value. A client session might look as follows:
+%%% The RESPONSE will be an appropriately encoded, binary version of a JSON 
+%%% response representing the Erlang return value. 
+%%% 
+%%% A client session might look  as follows:
 %%%
 %%%     ```client:send("{put, evs, 1, \"a string value\"}")
-%%%     ==> <<"{\"ok\":1}">>
+%%%     ==> <<"{\"ok\":1}">>            
 %%%
 %%%     client:send("{get, evs, 1}"),
 %%%     ==> <<"{\"ok\": \"a string value\"}">>'''
@@ -125,7 +131,7 @@ init([]) -> {ok, undefined}.
 init(Ref, S, T, _Opts = [Port]) ->
     ok = proc_lib:init_ack({ok, self()}),
     ok = ranch:accept_ack(Ref),
-    ok = T:setopts(S, [{active, once}, {packet,0}]),
+    ok = T:setopts(S, [{active, once}, {packet, 0}]),
     lager:info("~p(~p): up and listening on port ~p.",
 	       [?MODULE, self(), Port]),
 
@@ -147,7 +153,6 @@ init(Ref, S, T, _Opts = [Port]) ->
 handle_info({tcp, S, Data}, State = #jc_p{socket=S, trans=T})->
     T:setopts(S, [{active, once}]),
     NewState = handle_data(Data, State),
-
     {noreply, NewState, ?TIMEOUT};
 
 handle_info({tcp_closed, _Socket}, State) ->
@@ -175,7 +180,6 @@ handle_call(Request, _From, State) ->
 	{reply, ok, State}.
 
 
-
 %% -----------------------------------------------------------------------------
 %% @private Handle cast messages.
 %%
@@ -191,8 +195,9 @@ handle_cast(Msg, State) ->
 %%
 -spec terminate(any(), #jc_p{}) -> any().
 
-terminate(_Reason, _State) ->
-	ok.
+terminate(Reason, _State) ->
+    lager:warning("~p: terminated with reason: ~p.", [?MODULE, Reason]),
+    ok.
 
 
 %% -----------------------------------------------------------------------------
@@ -210,27 +215,33 @@ code_change(_OldVsn, State, _Extra) ->
 %%% ============================================================================
 
 
-%% =============================================================================
-%% Top-level protcol parser, returns a new state.
+%% -----------------------------------------------------------------------------
+%% @private Top-level handler for socket data, returns a new state.
 %%
-handle_data(Binary, #jc_p{trans = T, socket = S} = State) ->
+-spec handle_data(Data::binary(), OldState::#jc_p{}) -> NewState::#jc_p{}.
+
+handle_data(Data, #jc_p{trans = T, socket = S, connected = C} = State) ->
     try
-	do_command(Binary, State)
+	do_command(Data, State)
     catch
 	throw:{fatal, F} ->
 	    T:send(S, marshal({error, {protocol_error, F}})),
-	    self() ! {tcp_closed, S};
-	_:E ->
-	    T:send(S, marshal({error, E})),
-	    reset_state(State)
+	    self() ! {tcp_closed, S},
+	    State;
+	_:Error ->
+	    T:send(S, marshal({error, Error})),
+	    State#jc_p{acc = <<>>,
+		       size = undefined,
+		       connected=C}
     end.
 	
 
 %% -----------------------------------------------------------------------------
-%% If we have nothing yet, get the size prefix and start accumulating the 
-%% command from the Socket. Otherwise, we have a part of a command from a
-%% previous socket communication and we continue accumulating.
+%% Get Size Header, Get Size bytes, Execute Command, Repeat. When no more bytes,
+%% save what has been retrieved thus far in the State and return.
 %%
+-spec do_command(Data::binary(), OldState::#jc_p{}) -> NewState::#jc_p{}.
+
 do_command(<<>>, State) ->
     State;
 
@@ -244,32 +255,33 @@ do_command(<<Size:8/integer-unit:8, C/binary>>, #jc_p{size = undefined, acc = <<
 	    S#jc_p{size = Size - Less, acc = C}
     end;
 
-do_command(Bin, #jc_p{size = undefined, acc = Acc} = S) ->
-    NewBin = <<Acc/binary, Bin/binary>>,
-    case byte_size(NewBin) of
+do_command(Data, #jc_p{size = undefined, acc = Acc} = S) ->
+    NewData = <<Acc/binary, Data/binary>>,
+    case byte_size(NewData) of
 	NSize when NSize >= 8 ->
-	    <<Size:8/integer-unit:8, Remainder/binary>> = NewBin,
+	    <<Size:8/integer-unit:8, Remainder/binary>> = NewData,
 	    do_command(Remainder, S#jc_p{size=Size, acc = <<>>});
 	_ ->
-	    S#jc_p{acc = NewBin, size = undefined}
+	    S#jc_p{acc = NewData, size = undefined}
     end;
 
-do_command(Bin, #jc_p{acc = Acc, size = Size} = S) when size /= undefined->
-    case byte_size(Bin) of 
+do_command(Data, #jc_p{acc = Acc, size = Size} = S) when size /= undefined->
+    case byte_size(Data) of 
 	BSize when BSize >= Size ->
-	    <<Seg:Size/binary, Remainder/binary>> = Bin,
+	    <<Seg:Size/binary, Remainder/binary>> = Data,
 	    Command = <<Acc/binary, Seg/binary>>,
 	    S2 = execute_command(Command, S),
 	    do_command(Remainder, S2#jc_p{acc = <<>>, size = undefined});
 	Less ->
-	    S#jc_p{size = Size - Less, acc = <<Acc/binary, Bin/binary>>}
+	    S#jc_p{size = Size - Less, acc = <<Acc/binary, Data/binary>>}
     end.
 
+
 %% -----------------------------------------------------------------------------
-%% If we have a real command (size left = 0), do it.
+%% Execute the command.
 %
-execute_command(Com, #jc_p{trans=T, socket=S, connected=false} = State)->
-    case evaluate(Com) of
+execute_command(Command, #jc_p{trans=T, socket=S, connected=false} = State)->
+    case evaluate(Command) of
 	open_session ->
 	    lager:debug("~p (~p): connected with version: ~p",
 			[?MODULE, self(), <<"1.0">>]),
@@ -279,9 +291,10 @@ execute_command(Com, #jc_p{trans=T, socket=S, connected=false} = State)->
 	    throw({fatal, missing_connect})
    end;
 
-execute_command(Com, #jc_p{socket = S} = State) ->
-    case evaluate(Com) of
+execute_command(Command, #jc_p{trans=T, socket = S} = State) ->
+    case evaluate(Command) of
 	close_session -> 
+	    T:send(S, marshal({close, 1.0})),
 	    self() ! {tcp_closed, S};
 	{command, R} ->
 	    jc_bridge:do(R),
@@ -291,8 +304,6 @@ execute_command(Com, #jc_p{socket = S} = State) ->
     end.
 
 
-
-
 % ==============================================================================
 % Utility functions
 % ==============================================================================
@@ -300,7 +311,7 @@ execute_command(Com, #jc_p{socket = S} = State) ->
 	       
 % ------------------------------------------------------------------------------
 % Given a string representation of a tuple, convert it to an Erlang tuple, make
-% strings binary strings and determine the cache action implied by the Command.
+% strings binary and determine the cache action implied by the Command.
 %
 evaluate(Command) ->
     try
@@ -327,16 +338,9 @@ determine_action([{tuple,1,[{atom,1,connect},{tuple,1,
 determine_action([{tuple,1,_}] = AST) ->
     {value, R, _} = erl_eval:exprs(AST, []),
     {command, R};
+
 determine_action(_) ->
     {error, badarg}.
-
-
-
-%% After a COMMAND frame, reset the CONNECTION (state) for next COMMAND frame.
-reset_state(S) ->
-    S#jc_p{acc = <<>>,
-	   size = undefined,
-	   connected=true}.
 
 
 % Marshal the message: make it binary JSON.
@@ -345,21 +349,22 @@ marshal({ok,{H, M}}) ->
 
 marshal({X, Y}) ->
     package(jsx:encode([{X,Y}]));
+
 marshal(M) ->
     package(jsx:encode(M)).
+
 
 package(Message) ->
     Size = byte_size(Message),
     <<Size:8/integer-unit:8, Message/binary>>.
 		
 
-
-
-
 % Walk the scanned list of tokens making strings binary strings
 strings_to_binary([], Acc) ->
     lists:reverse(Acc);
+
 strings_to_binary([{string, _, _}=S|Tl], Acc) ->
     strings_to_binary(Tl, [{'>>',1}, S, {'<<',1}|Acc]);
+
 strings_to_binary([Hd|Tl],Acc) ->
     strings_to_binary(Tl, [Hd|Acc]).

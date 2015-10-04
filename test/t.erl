@@ -71,7 +71,7 @@ init([Pid]) ->
     Size = byte_size(C),
     M = <<Size:8/integer-unit:8, C/binary>>,
     gen_tcp:send(Socket, M),
-    {ok, #state{socket=Socket, acc = <<>>, client=Pid, size = 0}}.
+    {ok, #state{socket=Socket, acc = <<>>, client=Pid, size = undefined}}.
 
 %% -----------------------------------------------------------------------------
 %% @private
@@ -113,7 +113,7 @@ handle_cast(reset, #state{socket=S}=State) ->
     Size = byte_size(C),
     M = <<Size:8/integer-unit:8, C/binary>>,
     gen_tcp:send(Socket, M),
-    {noreply, State#state{socket=Socket, acc = <<>>, size=0}};
+    {noreply, State#state{socket=Socket, acc = <<>>, size=undefined}};
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -134,8 +134,9 @@ handle_info({tcp,_P, Message}, #state{socket=S} = State) ->
     {noreply, NewState};
 
 
-handle_info(Info, State) ->
+handle_info(Info, State=#state{client=Client}) ->
     io:format("<== ~p~n", [Info]),
+    Client ! Info,
     {noreply, State}.
 
 
@@ -146,11 +147,12 @@ handle_data(Data, State) ->
 do_command(<<>>, State) ->
     State;
 
-do_command(<<Size:8/integer-unit:8, C/binary>>, #state{size = undefined, acc = <<>>} = S) ->
+do_command(<<Size:8/integer-unit:8, C/binary>>, #state{size = undefined, acc = <<>>, client=Client} = S) ->
     case byte_size(C) of
 	CSize when CSize >= Size ->
 	    <<Command:Size/binary, Remainder/binary>> = C,
 	    io:format("==> ~s~n",[Command]),
+	    Client ! Command,
 	    do_command(Remainder, S);
 	Less ->
 	    S#state{size = Size - Less, acc = C}
@@ -166,12 +168,13 @@ do_command(Bin, #state{size = undefined, acc = Acc} = S) ->
 	    S#state{acc = NewBin, size = undefined}
     end;
 
-do_command(Bin, #state{acc = Acc, size = Size} = S) when size /= undefined->
+do_command(Bin, #state{acc = Acc, size = Size, client=Client} = S) when size /= undefined->
     case byte_size(Bin) of 
 	BSize when BSize >= Size ->
 	    <<Seg:Size/binary, Remainder/binary>> = Bin,
 	    Command = <<Acc/binary, Seg/binary>>,
 	    io:format("==> ~s~n",[Command]),
+	    Client ! Command,
 	    do_command(Remainder, S#state{acc = <<>>, size = undefined});
 	Less ->
 	    S#state{size = Size - Less, acc = <<Acc/binary, Bin/binary>>}

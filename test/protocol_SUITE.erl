@@ -13,7 +13,7 @@
 	 end_per_testcase/2,
 	 end_per_suite/1]).
 
--export([put_get_test/1, error_test/1]).
+-export([put_get_test/1, error_test/1, quant_test/1]).
 
 
 % So we can test that all erlang types are valid keys, values and maps
@@ -21,7 +21,7 @@
 
 
 all() ->
-    [ put_get_test, error_test
+    [ put_get_test, error_test, quant_test
 ].
 
 init_per_suite(Config) ->
@@ -35,7 +35,7 @@ init_per_suite(Config) ->
     application:set_env(jc,  protocol_port, 5555),
 
     application:ensure_all_started(jc),
-    lager:set_loglevel(lager_console_backend, debug),
+    lager:set_loglevel(lager_console_backend, info),
     Config.
 
 
@@ -50,7 +50,8 @@ init_per_testcase(_, Config) ->
 
 end_per_testcase(_, Config) ->
     jc:flush(silent),
-    t:terminate(),
+    t:send("{close}"),
+    get_all_results(),
     Config.
 
 end_per_suite(Config) ->
@@ -119,7 +120,23 @@ put_get_test(_Config) ->
     R2 = get_result().
 
 
-    
+quant_test(_config) ->
+    Limit  = 5000,
+    [ t:send("{put, bed, " ++ integer_to_list(X) ++ ", " ++ integer_to_list(X) ++ "}") ||
+	X <- lists:seq(1, Limit)],
+    R = get_all_results(),
+    Limit = length(R) - 1,
+    t:send("{map_size, bed}"),
+    <<"{\"records\":5000}">>.
+	           
+
+get_all_results() ->
+    receive X ->
+	    [X|get_all_results()]
+    after
+	100 ->
+	    [ok]
+    end.
 
 get_result() ->
     receive
