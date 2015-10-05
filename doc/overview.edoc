@@ -93,7 +93,7 @@ JC
 <li>up() -&gt; {uptime, [{up_at, String},{now, String},
                       {up_time, {D, {H, M, S}}}]</li>
 </ul>
-=== Consistacny Supported Functions (jc_s) ===
+=== Consistency Supported Functions (jc_s) ===
 <p>Identical to the Create and Evict family of functions of the jc module (see above),
 except:</p>
 <ul>

@@ -91,7 +91,7 @@ JC
                       {up_time, {D, {H, M, S}}}]
 
 
-### Consistacny Supported Functions (jc_s)
+### Consistency Supported Functions (jc_s)
 Identical to the Create and Evict family of functions of the jc module (see above),
 except:
 
