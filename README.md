@@ -1,6 +1,5 @@
 JC  
 ====
-
 ##Erlang, Distributable, In-Memory Cache
 
 ### Pub/Sub; JSON-Query; Consistency Assist; and Simple, TCP Interoperability Protocol.
