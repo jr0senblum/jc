@@ -55,7 +55,7 @@ JC
     cache operations, executes the cache operations and returns the
     results to the client. This has been used with JInterface to 
     interoperate with CLOJURE and Java clients
-* Fine-grained logging via lager
+* Fine-grained logging via Lager
 
 
 
@@ -92,9 +92,9 @@ JC
                       {up_time, {D, {H, M, S}}}]
 
 
-### Consistency Supported Functions (jc_s)
-Identical to the Create and Evict family of functions of the jc module (see above),
-except:
+### Consistency Support Functions (jc_s)
+Identical to the Create and Evict family of functions of the jc module
+(see above), except:
 
 * An additional sequence parameter, which is expected to be a monotonically
   incresing integer (with respect to a given Map), used to disalow
@@ -112,12 +112,12 @@ except:
 
 
 
-###Eviction Manager functions (jc_eviction_manager)
+###Eviction Manager Functions (jc_eviction_manager)
 * set_max_ttl(Map, Secs) -> ok | {error, badarg}
 * get_max_ttls() -> [{Map, Secs}, ...]
 
 
-###Pub/Sub functions (jc_psub)
+###Pub/Sub Functions (jc_psub)
 * map_subscribe(Pid, Map, Key|any, write|delete|any) -> ok | {error, badarg}
 * map_unsubscribe(Pid, Map, Key|any, write|delete|any) -> ok | {error, badarg}
   * client receives
@@ -140,7 +140,7 @@ except:
   `{jc_node_events, {nodeup, UppedNode, [ActiveNodes],[ConfiguredNodes]}}`
 
 
-###Indexing functions (jc_store)
+###Indexing Functions (jc_store)
   * start_indexing(Map, Path={bed,"menu.id"}) -> ok |
                                                {error, no_indexes_available} |
 							       {error, Term}
@@ -174,11 +174,11 @@ except:
   {From, {node_topic_unsub}} -> ok.
 
 
-### Interoperability: String protocol
+### Interoperability: Socket Protocol
 Binary-encoded, string protocol used to provide socket-based
 interoperability with JC. 
 
-All messages to the cache system are string representations of a tuple, All
+All messages to JC are string representations of a tuple. All
 messages form the caching system to the client are JSON
 
 The protocol defines three message types: CONNECT, CLOSE and COMMAND all 
@@ -211,8 +211,8 @@ The CLOSE command closes the socket, ending the session
      <<7,123,99,108,111,115,101,125>>
 
 
-COMMAND messages are string versions of the tuple-messages which 
-jc_bridge uses only without the self() parameter. For example
+COMMAND messages are string versions of the tuple-messages, which 
+jc_bridge uses, without the self() parameter. For example
 
     {self(), {put, Map, Key, Value}} becomes 
     {put, Map, Key, Value}
