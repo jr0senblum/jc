@@ -14,33 +14,34 @@ JC
     in other caching systems
   * Maps, Keys and Values can be any Erlang term
   * TTL is time-to-live in seconds
-* Consistency Assist through Sequence Number: An alternative API
+* Consistency assist through sequence numbers: An alternative API
     allows for a sequence-number parameter on the put/x, evict/x,
     match/x and remove/x operations. Operations whose sequence
     number is lower than the current, per-map max are disallowed 
     thereby ensuring, for example, that stale puts do not 
     overwrite newer ones due to the newer one beating the stale
     ones to the cache.
-*  JSON Query Support
+*  JSON query support
    * Query by JSON: When Values are JSON, evict_match/2,
-    evict_all_match/1 and values_match/2 search or evict
-    keys whose JSON value, at a location specificed by a java-style, dot-path
-    string, equals the given value. That is,
-    jc:values_match(bed, "id.type=3") would return all values for Keys in the
-    bed 'Map' whose JSON value was an object with an "id":3 in the top-level.
-   * Ad-hoc, Index Support: In order to support faster
+    evict_all_match/1 and values_match/2 will search or evict
+    keys whose JSON value, at a location specificed by a java-style, 
+    dot-path string, equals the given value. That is,
+    jc:values_match(bed, "id.type=3") would return all values, in the given
+    map (bed), where that value was a JSON object, id, with a "type":3
+    at its top-level.
+   * Ad-hoc, index support: In order to support faster
     operations, (2-3 orders of magnitude), each map can have up to four,
-    dot-path, strings configured for which jc will provide 
-    index support.
-   * Auto Index Recognition - Frequently used JSON querries will be automatically
-    detected and indexing initiated.
-* User Controlled Eviction
+    dot-path, strings configured (or added at run-time) for which jc will
+    provide index support.
+   * Auto index recognition - Frequently used JSON querries will be
+     automatically detected and indexing initiated.
+* User controlled eviction
   * Map-level TTL: A job runs at configured intervals and removes
   items whose create-date is older than a map-specific, configured 
   number of seconds.
   * Item-level TTL: PUTS can include a TTL which defines when the
   item should be evicted. Used for shorter TTLs, as an exception
-  to a Map-level TTL, or when more precision is required than 
+  to a Map-level TTL, or when more precision is required than that
   offered by the Map-level TTL.
 * Pub/Sub 
   * Clients can subscribe to Map events for a specific key or
@@ -48,11 +49,12 @@ JC
   * Clients can create and subscribe to arbitrary 'topics' and 
   broadcast arbitrary messages under those topic names
   * Clients can subscribe to node-up and node-down events 
-* Interopability: Binary string over TCP returning JSON
-* Bridge process that accepts messages from a client indicating
-  cache operations, executes the cache operations and returns the
-  results to the client. This has been used with JInterface to 
-  interoperate with CLOJURE and Java clients
+* Interopability
+  * Binary string over TCP returning JSON
+  * Bridge process that accepts messages from a client indicating
+    cache operations, executes the cache operations and returns the
+    results to the client. This has been used with JInterface to 
+    interoperate with CLOJURE and Java clients
 * Fine-grained logging via lager
 
 
@@ -104,18 +106,18 @@ except:
   * put(Map, Key, Value, [TTLSecs], Seq) 
   * put_all(Map, [{K,V},{K,V},...], [TTLSecs], Seq)
   * remove_items(Map, Keys, Seq)
-* Meta Functions
-  * sequence() -> [{Map, Highest_Number},... ]
-  * sequence(Map) -> Hightest_Number
+* Meta functions
+  * sequence() -> [{Map, HighestNnumber},... ]
+  * sequence(Map) -> HightestNumber
 
 
 
-###Eviction Manager Functions (jc_eviction_manager)
+###Eviction Manager functions (jc_eviction_manager)
 * set_max_ttl(Map, Secs) -> ok | {error, badarg}
 * get_max_ttls() -> [{Map, Secs}, ...]
 
 
-###Pub/Sub Functions (jc_psub)
+###Pub/Sub functions (jc_psub)
 * map_subscribe(Pid, Map, Key|any, write|delete|any) -> ok | {error, badarg}
 * map_unsubscribe(Pid, Map, Key|any, write|delete|any) -> ok | {error, badarg}
   * client receives
@@ -138,17 +140,17 @@ except:
   `{jc_node_events, {nodeup, UppedNode, [ActiveNodes],[ConfiguredNodes]}}`
 
 
-###Indexing Functions (jc_store)
+###Indexing functions (jc_store)
   * start_indexing(Map, Path={bed,"menu.id"}) -> ok |
                                                {error, no_indexes_available} |
 							       {error, Term}
-  * stop_indexing(Map, Path={bed,"menu","id"}) -> ok
+  * stop_indexing(Map, Path={bed,"menu.id"}) -> ok
   * indexes(Map) -> {indexes, [{{Map, Path}, Position},...]} for all indexes
                                                   of given Map
   * indexes() -> {indexes, [{{Map, Path}, Position},...]} for all indexes
 
 
-###Bridge Functions (jc_bridge)
+###Interoperability: Bridge (jc_bridge)
  * All functions from the jc, jc_s, jc_eviction_manager, jc_psub
  and jc_store are supported and are of the form:
  
@@ -173,7 +175,7 @@ except:
 
 
 ### Interoperability: String protocol
-This is a binary-encoded, string protocol used to provide socket-based
+Binary-encoded, string protocol used to provide socket-based
 interoperability with JC. 
 
 All messages to the cache system are string representations of a tuple, All

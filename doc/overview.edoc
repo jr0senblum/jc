@@ -19,7 +19,7 @@ JC
     in other caching systems</li>
 <li>Maps, Keys and Values can be any Erlang term</li>
 <li>TTL is time-to-live in seconds</li>
-<li>Consistency Assist through Sequence Number: An alternative API
+<li>Consistency Assist through Sequence Numbers: An alternative API
     allows for a sequence-number parameter on the put/x, evict/x,
     match/x and remove/x operations. Operations whose sequence
     number is lower than the current, per-map max are disallowed 
