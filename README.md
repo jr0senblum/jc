@@ -280,7 +280,11 @@ might look as follows:
 ![](https://cloud.githubusercontent.com/assets/2043491/10454823/818a0b74-7185-11e5-8c89-c0e5d44cc630.png)
 
 #### Interoperability Components
+Note that JInterface and the tcp, binary protocol are two different choies a non-native client can use.
 ![](https://cloud.githubusercontent.com/assets/2043491/10454840/8d8e204a-7185-11e5-9591-608edde120a0.png)
 
-#### Sequence Diagrams
+#### Sequence Diagram
+Non-native application utilizing the bridge component. 
 ![](https://cloud.githubusercontent.com/assets/2043491/10455036/c9600e66-7186-11e5-8370-226421af1a97.png)
+
+Erlang/Elixir clients would simply use the jc (or jc_s) to interact with cache functionality
