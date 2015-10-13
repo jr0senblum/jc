@@ -1,4 +1,4 @@
-JC  
+C  
 ====
 ##Erlang, Distributable, In-Memory Cache
 
@@ -276,6 +276,8 @@ might look as follows:
 
    `[root@dbo1] ./rebar3 edoc`
 
+## Component and Sequence Diagrams
+
 ### Components
 ![](https://cloud.githubusercontent.com/assets/2043491/10454823/818a0b74-7185-11e5-8c89-c0e5d44cc630.png)
 
@@ -287,4 +289,4 @@ Note that JInterface and the tcp, binary protocol are two different choies a non
 Non-native application utilizing the bridge component. 
 ![](https://cloud.githubusercontent.com/assets/2043491/10455036/c9600e66-7186-11e5-8370-226421af1a97.png)
 
-Erlang/Elixir clients would simply use the jc (or jc_s) to interact with cache functionality
+Erlang/Elixir clients would simply use the jc (or jc_s) modules to interact with cache functionality
