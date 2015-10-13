@@ -277,10 +277,10 @@ might look as follows:
    `[root@dbo1] ./rebar3 edoc`
 
 ### Components
-![]https://cloud.githubusercontent.com/assets/2043491/10454823/818a0b74-7185-11e5-8c89-c0e5d44cc630.png
+![](https://cloud.githubusercontent.com/assets/2043491/10454823/818a0b74-7185-11e5-8c89-c0e5d44cc630.png)
 
 #### Interoperability Components
-![]https://cloud.githubusercontent.com/assets/2043491/10454840/8d8e204a-7185-11e5-9591-608edde120a0.png
+![](https://cloud.githubusercontent.com/assets/2043491/10454840/8d8e204a-7185-11e5-9591-608edde120a0.png)
 
 #### Sequence Diagrams
-![]https://cloud.githubusercontent.com/assets/2043491/10455036/c9600e66-7186-11e5-8370-226421af1a97.png
+![](https://cloud.githubusercontent.com/assets/2043491/10455036/c9600e66-7186-11e5-8370-226421af1a97.png)
