@@ -1,7 +1,7 @@
 % Types
 -type seconds()          :: non_neg_integer().
 
--type map_name()         :: atom().
+-type map_name()         :: any().
 -type key()              :: any().
 -type value()            :: any().
 -type ttl()              :: seconds().
@@ -51,14 +51,14 @@
 	  
 
 -record (auto_index,
-	 {map_path      :: {map_name(), tuple()},
-	  count         :: non_neg_integer(),
-	  first         :: integer(),
-	  last          :: integer(),
-	  times         :: [integer()],
-	  indexed       :: boolean(),
-	  success       :: boolean(),
-	  error_message :: term()
+	 {map_path      :: {map_name(), tuple()} | '_',
+	  count         :: non_neg_integer() | '_',
+	  first         :: integer() | '_',
+	  last          :: integer() | '_',
+	  times         :: [integer()] | '_',
+	  indexed       :: boolean() | '_',
+	  success       :: boolean() | '_',
+	  error_message :: term() | '_'
 	 }).
 	    
 

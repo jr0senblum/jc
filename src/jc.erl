@@ -70,7 +70,7 @@ stop()->
 %% -----------------------------------------------------------------------------
 %% @doc Return a sorted list of all maps currently in the cache. 
 %% 
--spec maps() -> [{maps, map_name()}].
+-spec maps() -> {maps, map_name()}.
 
 maps() -> 
     {maps, trans_execute(fun() -> jc_store:maps() end)}.
@@ -113,8 +113,8 @@ up() ->
 
     Uptime = calendar:seconds_to_daystime(NowSecs-StartSecs),
 
-    {uptime, [{up_at, httpd_util:rfc1123_date(Start)},
-	      {now, httpd_util:rfc1123_date(Now)},
+    {uptime, [{up_at, rfc1123_date(Start)},
+	      {now, rfc1123_date(Now)},
 	      {up_time, Uptime}]}.
 
 
@@ -454,7 +454,7 @@ values_match(Map, Criteria) ->
 %% and then ask jc_store to to apply the supplied function for the cache items
 %% whose JSON value at the path equals the Test.
 %%
--spec fun_match(map(), string(), fun()) -> [term()].
+-spec fun_match(map(), string(), fun()) -> {ok, term()}.
 
 fun_match(Map, Criteria, Fun) ->
     case path2tuple(Criteria) of 
@@ -540,3 +540,39 @@ to_path_elt(Element) ->
 	_:_ ->
 	    Element
     end.
+
+% Lifted from Ericson's httpd_util module
+rfc1123_date(LocalTime) ->
+    {{YYYY,MM,DD},{Hour,Min,Sec}} = 
+	case calendar:local_time_to_universal_time_dst(LocalTime) of
+	    [Gmt]   -> Gmt;
+	    [_,Gmt] -> Gmt
+	end,
+    DayNumber = calendar:day_of_the_week({YYYY,MM,DD}),
+    lists:flatten(
+      io_lib:format("~s, ~2.2.0w ~3.s ~4.4.0w ~2.2.0w:~2.2.0w:~2.2.0w GMT",
+		    [day(DayNumber),DD,month(MM),YYYY,Hour,Min,Sec])).
+%% day
+
+day(1) -> "Mon";
+day(2) -> "Tue";
+day(3) -> "Wed";
+day(4) -> "Thu";
+day(5) -> "Fri";
+day(6) -> "Sat"; 
+day(7) -> "Sun".
+
+%% month
+
+month(1) -> "Jan";
+month(2) -> "Feb";
+month(3) -> "Mar";
+month(4) -> "Apr";
+month(5) -> "May";
+month(6) -> "Jun";
+month(7) -> "Jul";
+month(8) -> "Aug";
+month(9) -> "Sep";
+month(10) -> "Oct";
+month(11) -> "Nov";
+month(12) -> "Dec".

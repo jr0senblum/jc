@@ -37,7 +37,7 @@
 -include("../include/records.hrl").   
 
 
--type trx_ret() :: {error, badarg | out_of_seq | term()}.
+-type trx_ret_error() :: {error, badarg | out_of_seq | term()}.
 
 
 -define(INFINITY, 0).
@@ -67,7 +67,7 @@ sequence(Map) ->
 %% -----------------------------------------------------------------------------
 %% @doc Return a sorted list of {map, sequence numbers} for each map.
 %%
--spec sequence() -> {sequence, [{map_name(), non_neg_integer()}]}.
+-spec sequence() -> [] | [{map_name(), non_neg_integer()}].
 
 sequence() ->
     sequence_for(all).
@@ -85,7 +85,7 @@ sequence() ->
 %% number to ensure serialized operations.
 %%
 -spec put(map_name(), key(), value(), jc_sequence:seq()) -> 
-		 {ok, key()} | trx_ret().
+		 {ok, key()} | trx_ret_error().
 
 
 put(Map, Key, Value, Seq) when ?VALID(Seq) ->
@@ -101,7 +101,7 @@ put(_Map, _Key, _Value, _Seq) ->
 %%
 -spec put(map_name(), key(), value(), ttl(), jc_sequence:seq()) -> 
 		 {ok, key()} |
-						       trx_ret().
+                 trx_ret_error().
 
 
 put(Map, Key, Value, TTL, Seq) when ?VALID(TTL) andalso ?VALID(Seq)-> 
@@ -138,7 +138,7 @@ do_put(Map, Key, Value, TTL) ->
 %% of successes.
 %%
 -spec put_all(map_name(), list({key(), value()}), jc_sequence:seq()) -> 
-		     {ok, non_neg_integer()} | trx_ret().
+		     {ok, non_neg_integer()} | trx_ret_error().
 
 
 put_all(Map, KVList, Seq) when ?VALID(Seq) -> 
@@ -154,7 +154,7 @@ put_all(_M, _K, _S) ->
 %% of successes.
 %%
 -spec put_all(map_name(), list({key(), value()}), ttl(), jc_sequence:seq()) -> 
-		     {ok, non_neg_integer()} | trx_ret().
+		     {ok, non_neg_integer()} | trx_ret_error().
 
 
 put_all(Map, KVList, TTL, Seq) when ?VALID(TTL) andalso ?VALID(Seq) ->
@@ -185,7 +185,7 @@ put_all(_M, _K, _T, _S) ->
 %% @doc Evict {@link map_name(). Map}, {@link key(). Key} if sequence is 
 %% greater than or equal to the last seen sequence.
 %
--spec evict(map_name(), key(), jc_sequence:seq()) -> ok | trx_ret().
+-spec evict(map_name(), key(), jc_sequence:seq()) -> ok | trx_ret_error().
 
 evict(Map, Key, Seq) ->
     lager:debug("~p: evict map:~p, key: ~p, and seq: ~p.).", 
@@ -217,7 +217,7 @@ evict(Map, Key, Seq) ->
 %% indexes: "bed.id=10" or "bed.id.2.type.something=\"stringvalue\"".
 %%
 -spec evict_match(map_name(), Criteria::string(), jc_sequence:seq()) ->  
-			 ok | trx_ret().
+			 ok | trx_ret_error().
 
 evict_match(Map, Criteria, Seq) when ?VALID(Seq) ->
     lager:debug("~p: evict_match with map: ~p, criteria: ~p and seq: ~p.", 
@@ -259,7 +259,7 @@ do_evict_match(Map, Criteria) ->
 %% indexes: "bed.id=10" or "bed.id.2.type.something=\"stringvalue\"".
 %%
 -spec evict_all_match(Criteria::string(), jc_sequence:seq()) ->  
-			     ok | trx_ret().
+			     ok | trx_ret_error().
 
 evict_all_match(Criteria, Seq) when ?VALID(Seq) ->
     lager:debug("~p: evict_all_match with ~p and seq ~p:.", 
@@ -280,7 +280,7 @@ evict_all_match(_C, _S) ->
 %% the sequence number is greater than what has been seen.
 %%
 -spec remove_items(Map::map_name(), Keys::[key()], jc_sequence:seq()) -> 
-			  {ok, [{key(), value()}]} | trx_ret().
+			  {ok, [{key(), value()}]} | trx_ret_error().
 
 remove_items(Map, Keys, Seq) when ?VALID(Seq) ->
     lager:debug("~p: remove_items (~p, ~p, ~p).",[?MODULE, Map, Keys, Seq]),
@@ -363,7 +363,6 @@ sequence_for(Map) ->
 %% Execute F in the context of a transaction, if F is not already executing in 
 %% the context of a transaction -- Avoids nesting.
 %% 
--spec trans_execute(fun(() -> any()), string(), [term()]) -> trx_ret().
 
 trans_execute(F, Message, Params) ->
     case mnesia:is_transaction() of

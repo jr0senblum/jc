@@ -182,7 +182,6 @@ code_change(_OldVsn, State, _Extra) ->
 %% -----------------------------------------------------------------------------
 %% If the global registry doesn't have a PID registered for jc_analyzer, then 
 %% claim it and schedule frst clean; otherwise, monitor the master.
--spec grab_name() -> ok | erlang:ref().
 
 grab_name() ->
     case global:register_name(?MODULE, self()) of
@@ -272,7 +271,7 @@ slide_window(#auto_index{times = T} = R, NowSecs, Map, Path, Window) ->
     
     case NewTimes of
 	[] ->
-	    mnesia:dirty_delete(R);
+	    mnesia:dirty_delete_object(R);
 	NewTimes ->
 	    mnesia:dirty_write(R#auto_index{first = hd(NewTimes),
 					    last = NowSecs,

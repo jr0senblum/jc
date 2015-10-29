@@ -227,10 +227,6 @@ might look as follows:
     <<"{\"ok\":"{\\\"value\\\":true}\"}">>
 
 
-NOTE THAT KEYS NEED TO BE STRINGS WHEN USING THIS PROTOCOL BECAUSE THEY
-ARE OFTEN RETURNED AS KEYS IN A JSON OBJECT ({string : value})} AND
-JSON, OBJECT KEYS MUST BE STRINGS
-
 ###Configuration
 * Application configuration is in sys.config which is heavily
   commented

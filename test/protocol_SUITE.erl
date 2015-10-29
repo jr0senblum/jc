@@ -1,4 +1,4 @@
-%% 
+
 
 
 -module(protocol_SUITE).
@@ -94,11 +94,11 @@ put_get_test(_Config) ->
     <<"{\"ok\":[1,2,3]}">> = get_result(),
 
     
-    t:send("{put_all, evs, [{\"1\",1}, {\"2\",\"2\"}, {\"3\",3.3}]}"),
+    t:send("{put_all, evs, [{1,1}, {2,\"2\"}, {\"3\",3.3}]}"),
     <<"{\"ok\":3}">> = get_result(),   
 
-    t:send("{get_all, evs, [\"1\", \"2\", 4]}"),
-    <<"{\"hits\":{\"2\":\"2\",\"1\":1},\"misses\":[4]}">>  = get_result(),
+    t:send("{get_all, evs, [1, 2, 4]}"),
+    <<"{\"hits\":[{\"key\":2,\"value\":\"2\"},{\"key\":1,\"value\":1}],\"misses\":[4]}">>  = get_result(),
     
     t:send("{key_set, bed}"),
     <<"{\"ok\":[\"1\",\"3\",\"4\"]}">> = get_result(),
@@ -107,13 +107,79 @@ put_get_test(_Config) ->
     <<"{\"ok\":[1,3.3,[1,2,3]]}">> = get_result(),
 
     t:send("{values_match, json, \"first.second=1\"}"),
-    R = list_to_binary("{\"ok\":{\"1\":" ++ J1 ++ "}}"),
+    R = list_to_binary("[{\"key\":\"1\",\"value\":" ++ J1 ++ "}]"),
     R = get_result(),
     
     t:send("{values_match, json, \"second=true\"}"),
 
-    R2 = list_to_binary("{\"ok\":{\"1\":" ++ J1 ++ ",\"2\":" ++ J2 ++ "}}"),
-    R2 = get_result().
+    R2 = list_to_binary("[{\"key\":\"1\",\"value\":" ++ J1 ++ "},{\"key\":\"2\",\"value\":" ++ J2 ++ "}]"),
+    R2 = get_result(),
+
+    t:send("{put, bed, \"1\", 1}"),
+    <<"{\"ok\":\"1\"}">> = get_result(),
+    
+    t:send("{evict, evs, 1}"),
+    <<"\"ok\"">> = get_result(),
+
+    t:send("{map_size, evs}"),
+    <<"{\"records\":2}">> = get_result(),
+
+    t:send("{map_size, json}"),
+    <<"{\"records\":2}">> = get_result(),
+
+    t:send("{evict_all_match, \"first.second=1\"}"),
+    <<"\"ok\"">> = get_result(),
+
+    t:send("{map_size, json}"),
+    <<"{\"records\":1}">> = get_result(),
+    
+    t:send("{contains_key, evs, 2}"),
+    <<"true">> = get_result(),
+
+    t:send("{contains_key, evs, 123}"),
+    <<"false">> = get_result(),
+
+    t:send("{cache_nodes}"),
+    <<"{\"active\":[\"jc1@127.0.0.1\"],\"configured\":[\"jc1@127.0.0.1\",\"jc2@127.0.0.1\",\"jc3@127.0.0.1\"]}">>
+        = get_result(),
+    
+    t:send("{flush}"),
+    <<"\"ok\"">> = get_result(),
+
+    t:send("{cache_size}"),
+    <<"{\"key_to_value\":", _/binary >> = get_result(),
+
+    t:send("{map_size, bed}"),
+    <<"{\"records\":0}">> = get_result(),
+
+    t:send("{put_s, bed, \"1\", 1, 20}"),
+    <<"{\"ok\":\"1\"}">> = get_result(),
+
+    t:send("{put_s, evs, \"1\", 1, 30}"),
+    <<"{\"ok\":\"1\"}">> = get_result(),
+
+    t:send("{maps}"),
+    <<"{\"maps\":[\"bed\",\"evs\"]}">> = get_result(),
+    
+    t:send("{up}"),
+    <<"{\"uptime\":", _/binary>> = get_result(),
+
+
+    t:send("{sequence}"),
+    lager:info("it is ~p~n",[get_result()]),
+
+    t:send("{sequence, map}"),
+    lager:info("it is ~p~n",[get_result()]),
+
+    t:send("{set_max_ttl, bed, 1000}"),
+    lager:info("it is ~p~n",[get_result()]),
+
+    t:send("{get_max_ttls}"),
+    lager:info("it is ~p~n",[get_result()]).
+    
+    
+
+
 
 
 quant_test(_config) ->

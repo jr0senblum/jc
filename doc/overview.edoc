@@ -211,9 +211,6 @@ might look as follows:</p>
 client:send("{get, evs, \"1\"}"),
     &lt;&lt;"{\"ok\":"{\\\"value\\\":true}\"}"&gt;&gt;
 
-NOTE THAT KEYS NEED TO BE STRINGS WHEN USING THIS PROTOCOL BECAUSE THEY
-ARE OFTEN RETURNED AS KEYS IN A JSON OBJECT ({string : value})} AND
-JSON, OBJECT KEYS MUST BE STRINGS
 </code></pre>
 === Configuration ===
 <ul>

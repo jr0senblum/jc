@@ -14,7 +14,7 @@
 %%% 8-byte, big endian, unsigned integer indicating the size of the message in 
 %%% bytes.
 %%%
-%%% A RESPONSE is structured the same as messages - 8-byte size header followd
+%%% A RESPONSE is structured the same as messages - 8-byte size header followed
 %%% by the content of the response.
 %%%
 %%% The CONNECT command initiates a session, 
@@ -91,6 +91,7 @@
 	       acc       = undefined :: undefined | binary(),
 	       size      = undefined :: undefined | non_neg_integer(),
 	       version   = <<"1.0">> :: binary()}).
+-type jc_p() :: #jc_p{}.
 
 
 
@@ -126,7 +127,7 @@ init([]) -> {ok, undefined}.
 %% -----------------------------------------------------------------------------
 %% Set up the socket and convert the process into a gen_server.
 %%
--spec init(ranch:ref(), any(), jc_protocol, [Port::integer()]) -> none().
+-spec init(ranch:ref(),any(),jc_protocol|undefined,[Port::integer()]) -> any().
 
 init(Ref, S, T, _Opts = [Port]) ->
     ok = proc_lib:init_ack({ok, self()}),
@@ -148,7 +149,7 @@ init(Ref, S, T, _Opts = [Port]) ->
 %% @private Handle info messages: Socket messages and jc_psub subscription 
 %% messages.
 %%
--spec handle_info(any(), #jc_p{}) -> {noreply, #jc_p{}}.
+-spec handle_info(any(), jc_p()) -> {noreply, jc_p()} | {stop, normal, jc_p()}.
 
 handle_info({tcp, S, Data}, State = #jc_p{socket=S, trans=T})->
     T:setopts(S, [{active, once}]),
@@ -172,7 +173,7 @@ handle_info(Msg, State = #jc_p{socket=S, trans = T}) ->
 %% -----------------------------------------------------------------------------
 %% @private Hande call messages.
 %%
--spec handle_call(term(), {pid(), _}, #jc_p{}) -> {reply, ok, #jc_p{}}.
+-spec handle_call(term(), {pid(), _}, jc_p()) -> {reply, ok, jc_p()}.
 
 handle_call(Request, _From, State) ->
     lager:warning("~p: unrecognized handle_call request: ~p.",
@@ -183,7 +184,7 @@ handle_call(Request, _From, State) ->
 %% -----------------------------------------------------------------------------
 %% @private Handle cast messages.
 %%
--spec handle_cast(any(), #jc_p{}) -> {noreply, #jc_p{}}.
+-spec handle_cast(any(), jc_p()) -> {noreply, jc_p()}.
 
 handle_cast(Msg, State) ->
     lager:warning("~p: unexpected cast message: ~p.", [?MODULE, Msg]),
@@ -193,7 +194,7 @@ handle_cast(Msg, State) ->
 %% -----------------------------------------------------------------------------
 %% @private Terminate server.
 %%
--spec terminate(any(), #jc_p{}) -> any().
+-spec terminate(any(), jc_p()) -> any().
 
 terminate(Reason, _State) ->
     lager:warning("~p: terminated with reason: ~p.", [?MODULE, Reason]),
@@ -203,7 +204,7 @@ terminate(Reason, _State) ->
 %% -----------------------------------------------------------------------------
 %% @private Convert process state when code is changed.
 %%
--spec code_change(term(), #jc_p{}, any()) -> {ok, #jc_p{}}.
+-spec code_change(term(), jc_p(), any()) -> {ok, jc_p()}.
 
 code_change(_OldVsn, State, _Extra) ->
 	{ok, State}.
@@ -218,7 +219,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% -----------------------------------------------------------------------------
 %% @private Top-level handler for socket data, returns a new state.
 %%
--spec handle_data(Data::binary(), OldState::#jc_p{}) -> NewState::#jc_p{}.
+-spec handle_data(Data::binary(), OldState::jc_p()) -> NewState::jc_p().
 
 handle_data(Data, #jc_p{trans = T, socket = S, connected = C} = State) ->
     try
@@ -240,7 +241,7 @@ handle_data(Data, #jc_p{trans = T, socket = S, connected = C} = State) ->
 %% Get Size Header, Get size number of bytes, Execute Command, Repeat. When no
 %% more bytes, save what has been retrieved thus far in the State and return.
 %%
--spec handle(Data::binary(), OldState::#jc_p{}) -> NewState::#jc_p{}.
+-spec handle(Data::binary(), OldState::jc_p()) -> NewState::jc_p().
 
 handle(<<>>, State) ->
     State;
@@ -343,8 +344,8 @@ determine_action(_) ->
     {error, badarg}.
 
 
-% Marshal the message: make it binary JSON if possible and package it according 
-% to the protocol.
+% Marshal the message: make it binary JSON and package it according to the
+% protocol.
 marshal(Message) ->
     Result = try 
                  to_json(Message)
@@ -355,17 +356,42 @@ marshal(Message) ->
 
 to_json({ok,{H, M}}) ->
     
-    jsone:encode([{hits, H}, {misses, M}],
+    jsone:encode([{hits, encode_keys(H)}, {misses, M}],
+                 [{float_format, [{decimals, 10}, compact]}]);
+
+to_json({ok, [{_,_}|_Vs]=Lst}) ->
+    jsone:encode(encode_keys(Lst),
+                 [{float_format, [{decimals, 10}, compact]}]);
+
+to_json({{active, _}=A,{configured, _}=C}) ->
+    jsone:encode([A,C],
+                 [{float_format, [{decimals, 10}, compact]}]);
+
+to_json({size, Sizes}) ->
+    Os = lists:map(fun({A,B,C}) -> {A, [B,C]} end, Sizes),
+    jsone:encode(Os,
+                 [{float_format, [{decimals, 10}, compact]}]);
+
+to_json({uptime, [{up_at, U}, {now, N},{up_time, _UT}]}) ->
+    jsone:encode([{uptime, [{up_at, list_to_binary(U)}, 
+                            {now, list_to_binary(N)}]}],
                  [{float_format, [{decimals, 10}, compact]}]);
 
 to_json({X, Y}) ->
     jsone:encode([{X,Y}],
                  [{float_format, [{decimals, 10}, compact]}]);
 
-
 to_json(M) ->
     jsone:encode(M,
                  [{float_format, [{decimals, 10}, compact]}]).
+
+
+% JC Keys can be anytime, but json needs object keys to be strings, so 
+% {k,v} needs to be embedded in a json \"key\" : key, \"value\":value
+% object.
+encode_keys(KVList) ->
+  lists:map(fun({K,V}) -> {[{key, K},{value, V}]} end,
+            KVList).
 
 
 % Make binary pay-load with size header.

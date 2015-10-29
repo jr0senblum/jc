@@ -41,7 +41,8 @@ start_link() ->
 %% -----------------------------------------------------------------------------
 %% @private Fire up the supervised processes.
 %%
--spec init([]) ->  {'ok', {{'one_for_one', 60, 3600}, [{_,_,_,_,_,_}, ...]}}.
+-spec init([]) ->  {'ok', {{'one_for_one', 60, 3600}, 
+                           [supervisor:child_spec()]}}.
 
 init([]) ->
     EM = {jc_eviction_manager, 
