@@ -164,21 +164,17 @@ put_get_test(_Config) ->
     t:send("{up}"),
     <<"{\"uptime\":", _/binary>> = get_result(),
 
-
     t:send("{sequence}"),
-    lager:info("it is ~p~n",[get_result()]),
+    <<"{\"bed\":20,\"evs\":30}">> = get_result(),
 
     t:send("{sequence, map}"),
-    lager:info("it is ~p~n",[get_result()]),
+    <<"0">> = get_result(),
 
     t:send("{set_max_ttl, bed, 1000}"),
-    lager:info("it is ~p~n",[get_result()]),
+    <<"\"ok\"">> = get_result(),
 
     t:send("{get_max_ttls}"),
-    lager:info("it is ~p~n",[get_result()]).
-    
-    
-
+    <<"{\"bed\":1000,\"testmap\":100}">> = get_result().
 
 
 
