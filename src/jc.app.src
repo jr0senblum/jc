@@ -19,8 +19,7 @@
     compiler,
     ranch,
     lager,
-    jsonx,
-    jsx,
+    jsone,
     ej
    ]},
   {included_applications, [mnesia]},

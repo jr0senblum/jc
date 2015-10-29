@@ -388,22 +388,13 @@ map_match(Map, Path, Test, Fun) ->
     lists:foldl(F, [], Recs).
 
 
-%% jsonx NIF doesnt compile on windows so use erlang jsone library
-
--ifdef('NO_NIF').
--define(JSON_DECODE(X), jsone:decode(X)).
--else.
--define(JSON_DECODE(X), jsonx:decode(X)).
--endif.
-
-% decode the JSON using appropriate libary.
 decode(Value) ->
     try
 	V = case is_binary(Value) of
 		true -> Value;
 		false -> iolist_to_binary(Value)
 	    end,
-	?JSON_DECODE(V)
+        jsone:decode(V, [{object_format, proplist}])
     catch 
 	_:_-> jc_error
     end.

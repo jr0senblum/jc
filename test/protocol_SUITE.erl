@@ -16,10 +16,6 @@
 -export([put_get_test/1, error_test/1, quant_test/1]).
 
 
-% So we can test that all erlang types are valid keys, values and maps
--record(rec, {value}).
-
-
 all() ->
     [ put_get_test, error_test, quant_test
 ].
@@ -42,7 +38,7 @@ init_per_suite(Config) ->
 init_per_testcase(_, Config) ->
     code:load_file(t),
     t:start_link(),
-    <<"{\"version\":1.0}">> = get_result(),
+    <<"{\"version\":\"1.0\"}">> = get_result(),
 
     {maps, Maps} = jc:maps(),
     [jc:clear(Map) || Map <- Maps],
@@ -60,52 +56,52 @@ end_per_suite(Config) ->
 
 
 error_test(_Config) ->
-    t:send("{put, bed, 1, 1"),
+    t:send("{put, bed, \"1\", 1"),
     <<"{\"error\":\"command_syntax\"}">> = get_result(),
     
-    t:send("{what, bed, 1, 1}"),
+    t:send("{what, bed, \"1\", 1}"),
    <<"{\"error\":\"unrecognized_command\"}">> = get_result().
 
 
 
 put_get_test(_Config) ->
 
-    t:send("{put, bed, 1, 1}"),
-    <<"{\"ok\":1}">> = get_result(),
+    t:send("{put, bed, \"1\", 1}"),
+    <<"{\"ok\":\"1\"}">> = get_result(),
     
-    t:send("{put, bed, 3, 3.3}"),
-    <<"{\"ok\":3}">>= get_result(),
+    t:send("{put, bed, \"3\", 3.3}"),
+    <<"{\"ok\":\"3\"}">>= get_result(),
     
-    t:send("{put, bed, 4, [1,2,3]}"),
-    <<"{\"ok\":4}">> = get_result(),
+    t:send("{put, bed, \"4\", [1,2,3]}"),
+    <<"{\"ok\":\"4\"}">> = get_result(),
 
     J1 = "\"{\\\"first\\\":{\\\"second\\\":1, \\\"third\\\":true},\\\"second\\\":true}\"",
     J2 = "\"{\\\"first\\\":{\\\"second\\\":2, \\\"third\\\":false},\\\"second\\\":true}\"",
 
-    t:send("{put, json, 1, " ++ J1 ++ "}"),
-   <<"{\"ok\":1}">> = get_result(),
+    t:send("{put, json, \"1\", " ++ J1 ++ "}"),
+   <<"{\"ok\":\"1\"}">> = get_result(),
 
-    t:send("{put, json, 2, " ++ J2 ++ "}"),
-    <<"{\"ok\":2}">> = get_result(),
+    t:send("{put, json, \"2\", " ++ J2 ++ "}"),
+    <<"{\"ok\":\"2\"}">> = get_result(),
 
-    t:send("{get, bed, 1}"),
+    t:send("{get, bed, \"1\"}"),
     <<"{\"ok\":1}">> = get_result(),
 
-    t:send("{get, bed, 3}"),
+    t:send("{get, bed, \"3\"}"),
     <<"{\"ok\":3.3}">> = get_result(),
 
-    t:send("{get, bed, 4}"),
+    t:send("{get, bed, \"4\"}"),
     <<"{\"ok\":[1,2,3]}">> = get_result(),
 
     
-    t:send("{put_all, evs, [{1,1}, {2,\"2\"}, {3,3.3}]}"),
+    t:send("{put_all, evs, [{\"1\",1}, {\"2\",\"2\"}, {\"3\",3.3}]}"),
     <<"{\"ok\":3}">> = get_result(),   
 
-    t:send("{get_all, evs, [1, 2, 4]}"),
+    t:send("{get_all, evs, [\"1\", \"2\", 4]}"),
     <<"{\"hits\":{\"2\":\"2\",\"1\":1},\"misses\":[4]}">>  = get_result(),
     
     t:send("{key_set, bed}"),
-    <<"{\"ok\":[1,3,4]}">> = get_result(),
+    <<"{\"ok\":[\"1\",\"3\",\"4\"]}">> = get_result(),
 
     t:send("{values, bed}"),
     <<"{\"ok\":[1,3.3,[1,2,3]]}">> = get_result(),
@@ -122,19 +118,19 @@ put_get_test(_Config) ->
 
 quant_test(_config) ->
     Limit  = 5000,
-    [ t:send("{put, bed, " ++ integer_to_list(X) ++ ", " ++ integer_to_list(X) ++ "}") ||
+    [ t:send("{put, bed, \"" ++ integer_to_list(X) ++ "\", " ++ integer_to_list(X) ++ "}") ||
 	X <- lists:seq(1, Limit)],
     R = get_all_results(),
     Limit = length(R) - 1,
     t:send("{map_size, bed}"),
-    <<"{\"records\":5000}">>.
-	           
+    <<"{\"records\":5000}">> = get_result().
+
 
 get_all_results() ->
     receive X ->
 	    [X|get_all_results()]
     after
-	100 ->
+	1000 ->
 	    [ok]
     end.
 

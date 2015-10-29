@@ -205,11 +205,15 @@ jc_bridge uses only without the self() parameter. For example</p>
 </code></pre>
 <p>The return will be an encoded version of a JSON string. A client session 
 might look as follows:</p>
-<pre><code>client:send("{put, evs, 1, \"{\\\"value:\\\":true}\"}")
+<pre><code>client:send("{put, evs, \"1\", \"{\\\"value:\\\":true}\"}")
 &lt;&lt;"{\"ok\":1}"&gt;&gt;
 
-client:send("{get, evs, 1}"),
-&lt;&lt;"{\"ok\":"{\\\"value\\\":true}\"}"&gt;&gt;
+client:send("{get, evs, \"1\"}"),
+    &lt;&lt;"{\"ok\":"{\\\"value\\\":true}\"}"&gt;&gt;
+
+NOTE THAT KEYS NEED TO BE STRINGS WHEN USING THIS PROTOCOL BECAUSE THEY
+ARE OFTEN RETURNED AS KEYS IN A JSON OBJECT ({string : value})} AND
+JSON, OBJECT KEYS MUST BE STRINGS
 </code></pre>
 === Configuration ===
 <ul>

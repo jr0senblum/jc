@@ -198,9 +198,9 @@ The CONNECT command initiates a session,
       114,115,105,111,110,32,49,46,48,125,41>> 
 
 The server will respond to a CONNECT command with either an error or
-the encoded version of {"version":" "1.0""}
+the encoded version of {"version":" "1.0"}
 
-    <<15:8, <<"{\"version\":1.0}">> = 
+    <<15:8, <<"{\"version\":\"1.0\"}">> = 
     <<15,123,34,118,101,114,115,105,111,110,34,58,49,46,48,125>>
 
 The CLOSE command closes the socket, ending the session
@@ -220,12 +220,16 @@ jc_bridge uses, without the self() parameter. For example
 The return will be an encoded version of a JSON string. A client session 
 might look as follows:
 
-    client:send("{put, evs, 1, \"{\\\"value:\\\":true}\"}")
-    <<"{\"ok\":1}">>
+    client:send("{put, evs, \"1\", \"{\\\"value:\\\":true}\"}")
+    <<"{\"ok\":\"1\"}">>
 
     client:send("{get, evs, 1}"),
     <<"{\"ok\":"{\\\"value\\\":true}\"}">>
 
+
+NOTE THAT KEYS NEED TO BE STRINGS WHEN USING THIS PROTOCOL BECAUSE THEY
+ARE OFTEN RETURNED AS KEYS IN A JSON OBJECT ({string : value})} AND
+JSON, OBJECT KEYS MUST BE STRINGS
 
 ###Configuration
 * Application configuration is in sys.config which is heavily

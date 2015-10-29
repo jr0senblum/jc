@@ -506,16 +506,8 @@ split(Criteria)->
     {SLValue, STest}.
 
 
-%% jsonx NIF doesnt compile on windows so use erlang jsone library
-
--ifdef('NO_NIF').
--define(JSON_DECODE(X), jsone:decode(X)).
--else.
--define(JSON_DECODE(X), jsonx:decode(X)).
--endif.
-
 decode(Value) ->
-    try ?JSON_DECODE(list_to_binary(Value))
+    try jsone:decode(list_to_binary(Value), [{object_format, proplist}])
     catch 
 	_:_-> throw(error)
     end.

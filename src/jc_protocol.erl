@@ -285,7 +285,7 @@ execute(Command, #jc_p{trans=T, socket=S, connected=false} = State)->
 	open_session ->
 	    lager:debug("~p (~p): connected with version: ~p",
 			[?MODULE, self(), <<"1.0">>]),
-	    T:send(S, marshal({version, 1.0})),
+	    T:send(S, marshal({version, <<"1.0">>})),
 	    State#jc_p{connected = true};
 	_ ->
 	    throw({fatal, missing_connect})
@@ -343,17 +343,32 @@ determine_action(_) ->
     {error, badarg}.
 
 
-% Marshal the message: make it binary JSON.
-marshal({ok,{H, M}}) ->
-    package(jsx:encode([{hits, H}, {misses, M}]));
+% Marshal the message: make it binary JSON if possible and package it according 
+% to the protocol.
+marshal(Message) ->
+    Result = try 
+                 to_json(Message)
+             catch 
+                 _:_ -> to_json({error, jc_result_to_json})
+             end,
+    package(Result).
 
-marshal({X, Y}) ->
-    package(jsx:encode([{X,Y}]));
+to_json({ok,{H, M}}) ->
+    
+    jsone:encode([{hits, H}, {misses, M}],
+                 [{float_format, [{decimals, 10}, compact]}]);
 
-marshal(M) ->
-    package(jsx:encode(M)).
+to_json({X, Y}) ->
+    jsone:encode([{X,Y}],
+                 [{float_format, [{decimals, 10}, compact]}]);
 
 
+to_json(M) ->
+    jsone:encode(M,
+                 [{float_format, [{decimals, 10}, compact]}]).
+
+
+% Make binary pay-load with size header.
 package(Message) ->
     Size = byte_size(Message),
     <<Size:8/integer-unit:8, Message/binary>>.
