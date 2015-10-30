@@ -22,11 +22,12 @@ all() ->
 
 init_per_suite(Config) ->
     net_kernel:start(['jc1@127.0.0.1', longnames]),
-    application:set_env(jc, cache_nodes, ['jc1@127.0.0.1','jc2@127.0.0.1', 'jc3@127.0.0.1']),
+    application:set_env(jc, cache_nodes, 
+                        ['jc1@127.0.0.1','jc2@127.0.0.1', 'jc3@127.0.0.1']),
     application:set_env(jc, max_ttl_maps, [{testmap, 100}]),
     application:set_env(jc,  indexes, [{bed, "identifier"},
-					{bed, "menu.2.id.'2'"},
-					{cow, "cow.2.id.'2'"}]),
+                                       {bed, "menu.2.id.'2'"},
+                                       {cow, "cow.2.id.'2'"}]),
     application:set_env(jc,  analyze_freq, {5, 5}),
     application:set_env(jc,  protocol_port, 5555),
 
