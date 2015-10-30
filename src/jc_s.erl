@@ -2,15 +2,17 @@
 %%% @author Jim Rosenblum
 %%% @copyright (C) 2011 - 2015, Jim Rosenblum
 %%% @doc This module wraps the mnesia-interacting, lower-level functions
-%%% implemented in {@link jc_store. jc_store} and utilizes a singleton
-%%% gen_server to provide support for serializing opperations.
+%%% implemented in {@link jc_store. jc_store} to provide a public, DIRTY,
+%%% set of opperations. It utilizes a singleton gen_server, {@link jc_sequence},
+%%% to provide support for serializing opperations.
 %%%
 %%% A sequence parameter is used to disallow PUT, EVICT and REMOVE
 %%% operations whose sequence parameter is less than the highest, map-specific,
-%%% sequence numbers seen. 
+%%% sequence number seen thus far. 
 %%%
 %%% s_jc can be called directly by Erlang clients; or,
-%%% Java node -> JInterface -> {@link jc_bridge. jc_bridge} -> s_jc
+%%% Java node -> JInterface -> {@link jc_bridge. jc_bridge} -> jc_s; or,
+%%% Application -> TPC/IP -> {@link jc_protocol. jc_protocol} -> jc_S
 %%% 
 %%% @version {@version}
 %%% @end

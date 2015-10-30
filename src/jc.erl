@@ -4,11 +4,13 @@
 %%% @doc This module wraps the mnesia-interacting, lower-level functions
 %%% implemented in {@link jc_store. jc_store} to provide a public, DIRTY,
 %%% set of opperations. {@link jc_s. jc_s} provides functions that take a 
-%%% sequence parameter to better support serilization (consistency).
+%%% sequence parameter to better support serilization (consistency) without.
+%%% resorting to transactions.
 %%%
-%%% jc can be called directly by Erlang clients; or,
-%%% Java node -> JInterface -> {@link jc_bridge. jc_bridge} -> jc
-%%% 
+%%% JC can be called directly by Erlang clients; or,
+%%% Java node -> JInterface -> {@link jc_bridge. jc_bridge} -> jc; or,
+%%% Application -> TPC/IP -> {@link jc_protocol. jc_protocol} -> jc
+%%%
 %%% @version {@version}
 %%% @end
 %%% Created : 16 December 2011 by Jim Rosenblum
@@ -25,8 +27,8 @@
 -export([clear/1,
 	 evict/2, evict_match/2, evict_all_match/1, evict_map_since/2, 
 	 flush/0, flush/1,
-         remove_items/2, 
-	 delete_record_by_ref/1]).
+         remove_items/2]).
+
 
 % Get Functions
 -export([contains_key/2,
@@ -39,16 +41,20 @@
 % CACHE META-INFO SUPPORT
 -export([cache_nodes/0, cache_size/0, map_size/1, maps/0, up/0, stop/0]).
 
-
 % Used by jc_s for evict_match
 -export([fun_match/3]).
 
-% definitions of persisted and global records and types.
+% Used by eviction manager to evict an entry based on a reference
+-export ([delete_record_by_ref/1]).
+
+
+% definitions of global records and types.
 -include("../include/records.hrl").
 
 
 -define(INFINITY, 0).
 -define(VALID(X), is_integer(X) andalso (X >= 0)).
+
 
 
 %% =============================================================================
@@ -63,7 +69,9 @@
 
 stop()->
     application:stop(jc),
+    application:stop(mnesia),    
     application:stop(ranch),
+    application:stop(lager),    
     ok.
     
 
@@ -88,7 +96,7 @@ map_size(Map)->
 
 %% -----------------------------------------------------------------------------
 %% @doc Returns table size information, in records and words, for all tables
-%% used by j_cache. Notice that 'cached' {@link key(). Key} 
+%% used by jc. Notice that 'cached' {@link key(). Key} 
 %% {@link value(). Value} data are stored in the key_to_value table.
 %%
 -spec cache_size() -> {size, [{TableNm::atom(), {records, non_neg_integer()},
@@ -98,10 +106,10 @@ cache_size()->
     jc_store:stats(size).
 
 
-
 %% -----------------------------------------------------------------------------
-%% @doc Returns the date of cluster creation and uptime.
-%% 
+%% @doc Returns current datetime, datetime of cluster creation and elapsed 
+%% uptime.
+%%
 -spec up() -> {'uptime',[{'now',_} | {'up_at',_} | {'up_time',{_,_}},...]}.
 
 up() ->
@@ -119,8 +127,8 @@ up() ->
 
 
 %% -----------------------------------------------------------------------------
-%% @doc Return all 'up' JCache nodes and all configured JCache node. A node is
-%% considered to be up if Mnesia and jc_bridge are both up.
+%% @doc Return all 'up' JC nodes and all configured JC nodes. A node is
+%% considered up if Mnesia and jc_bridge are both up.
 %%
 -spec cache_nodes() -> {{active, [node()]}, {configured, [node()]}}.
 
@@ -128,8 +136,8 @@ cache_nodes() ->
     Configured = application:get_env(jc, cache_nodes,[]),
     MnesiaUp = jc_store:up_nodes(),
     Running = [N || N <- MnesiaUp, 
-		    undefined /= rpc:call(N,erlang,whereis,[jc_bridge], 1000)],
-    {{active,lists:sort(Running)},{configured, lists:sort(Configured)}}.
+		   undefined /= rpc:call(N, erlang, whereis, [jc_bridge], 1000)],
+    {{active, lists:sort(Running)}, {configured, lists:sort(Configured)}}.
 
 
 
@@ -148,7 +156,7 @@ put(Map, Key, Value) ->
 
 
 %% -----------------------------------------------------------------------------
-%% @doc Put the entry into the cache with the supplie TTL.
+%% @doc Put the entry into the cache with the supplied TTL.
 %%
 -spec put(map_name(), key(), value(), ttl()) -> {ok, key()} |
 						{error, badarg}.
@@ -166,8 +174,8 @@ put(_M, _K, _V, _T) ->
 
 
 %% -----------------------------------------------------------------------------
-%% @doc Put all the {K,V} tuples contained in the list. Return 
-%% the number of successes. Use infinity for the ttl. 
+%% @doc Put all the {K,V} tuples contained in the list. Return the number of
+%% successes. Use infinity for the ttl. 
 %%
 -spec put_all(map_name(), list(tuple())) -> {ok, non_neg_integer()} |
 					    {error, badarg}.
@@ -193,11 +201,10 @@ put_all(_m, _K, _T) ->
 
 
 
-
-
 %% =============================================================================
 %%  DELETE API
 %% =============================================================================
+
 
 %% -----------------------------------------------------------------------------
 %% @doc Evict all data associated with the supplied {@link map_name(). Map}.
@@ -223,10 +230,11 @@ evict(Map, Key) ->
 
 
 %% -----------------------------------------------------------------------------
-%% @doc Evict Map/Key from the cache for Key's whose value matches the criteria.
-%% Assumes the the criteria is a string in the form of "a.b.c=true", where 
-%% a.b.c is dot-path consisting of dot-separated JSON object-keys or JSON array
-%% indexes: "bed.id=10" or "bed.id.2.type.something=\"stringvalue\"".
+%% @doc Evict {@link map_name(). Map}, {@link key(). Key} from the cache for 
+%% Key's whose value matches the criteria. Assumes the the criteria is a 
+%% string in the form of "a.b.c=true", where a.b.c is a dot-path consisting 
+%% of dot-separated JSON object-keys or JSON array indexes:
+%% "bed.id=10" or "bed.id.2.type.something=\"stringvalue\"".
 %%
 -spec evict_match(map_name(), Criteria::string()) ->  ok.
 
@@ -238,12 +246,12 @@ evict_match(Map, Criteria) ->
     ok.
 
 
-
 %% -----------------------------------------------------------------------------
-%% @doc Call {@link evict_match/2} for each Map.
-%% Assumes the the criteria is a string in the form of "a.b.c=true", where 
-%% a.b.c is dot-path consisting of dot-separated JSON object-keys or JSON array
-%% indexes: "bed.id=10" or "bed.id.2.type.something=\"stringvalue\"".
+%% @doc Call {@link evict_match/2} on all {@link map_name(). Maps}.
+%% Assumes the the criteria is a string in the form of 
+%% "a.b.c=true", where a.b.c is a dot-path consisting of dot-searated JSON 
+%% object-keys or JSON array indexes:  "bed.id=10" or 
+%% "bed.id.2.type.something=\"stringvalue\"".
 %%
 -spec evict_all_match(Criteria::string()) ->  ok.
 
@@ -256,8 +264,9 @@ evict_all_match(Criteria) ->
 
 
 %% -----------------------------------------------------------------------------
-%% @doc Evict all items in the map whose create_tm is older than Age seconds.
-%% 
+%% @doc Evict all items in the {@link map_name()} whose create_tm is older 
+%% than Age seconds.
+%%
 -spec evict_map_since(map_name(), AgeSecs::seconds()) -> ok.
 
 evict_map_since(Map, AgeSecs) when is_integer(AgeSecs) ->
@@ -265,12 +274,10 @@ evict_map_since(Map, AgeSecs) when is_integer(AgeSecs) ->
 		[?MODULE, Map, AgeSecs]),
     Trans = fun() ->
 		    Recs = jc_store:get_map_since(Map, AgeSecs),
-		    [jc:evict(Map, R#key_to_value.key) ||
-			R <- Recs]
+		    [jc:evict(Map, R#key_to_value.key) || R <- Recs]
 	    end,
     trans_execute(Trans),
     ok;
-
 evict_map_since(_Map, _AgeSecs) ->
     ok.
 
@@ -309,7 +316,6 @@ flush(_) ->
     {error, badarg}.
 
 
-
 do_flush(Type)->
     F = case Type of
 	silent ->
@@ -321,7 +327,6 @@ do_flush(Type)->
 	end,
     trans_execute(F),
     ok.
-
 
 
 %% -----------------------------------------------------------------------------
@@ -353,7 +358,8 @@ remove_items(Map, Keys)->
 
 
 %% -----------------------------------------------------------------------------
-%% @doc Return true if the {@link key(). Key} is in the map, else false.
+%% @doc Return true if the {@link key(). Key} is in the {@link map_name()}, 
+%% else false.
 %%
 -spec contains_key(Map::map_name(), Key::key()) -> true | false.
 
@@ -402,7 +408,6 @@ get_all(Map, Keys)->
     {ok, trans_execute(fun() -> lists:foldl(F, {[],[]}, Keys) end)}.
 
 
-
 %% -----------------------------------------------------------------------------
 %% @doc Return all the keys for a given map.
 %% 
@@ -414,7 +419,6 @@ key_set(Map) ->
     trans_execute(F).
 
 
-
 %% -----------------------------------------------------------------------------
 %% @doc Return all values in the given map.
 %%
@@ -423,6 +427,7 @@ key_set(Map) ->
 values(Map) ->
     lager:debug("~p: values for ~p.",[?MODULE, Map]),
     {ok, Recs} = trans_execute(fun() -> jc_store:get_map(Map) end),
+
     F = fun(#key_to_value{value=Value}, Acc) -> [Value | Acc] end,
     {ok, lists:foldl(F, [], Recs)}.
 
@@ -441,16 +446,9 @@ values_match(Map, Criteria) ->
     fun_match(Map, Criteria, Fun).
 
 
-    
-
-		
-%% =============================================================================
-%% Utility functions
-%% =============================================================================
-
-
 %% -----------------------------------------------------------------------------
-%% Convert the criteria, "a.2.d=1" to {Paths, Test} = {{<<"a">>,2,<<"d">>},1} 
+%% @doc Convert the criteria, 
+%% ``` "a.2.d=1" to {Paths, Test}={{<<"a">>,2,<<"d">>},1} '''
 %% and then ask jc_store to to apply the supplied function for the cache items
 %% whose JSON value at the path equals the Test.
 %%
@@ -468,9 +466,15 @@ fun_match(Map, Criteria, Fun) ->
     end.
 
 
+		
+%% =============================================================================
+%% Utility functions
+%% =============================================================================
+
+
 %% -----------------------------------------------------------------------------
 %% Execute F in the context of a transaction, if F is not already
-%% executing in the context of a transaction -- Avoids nested transactions
+%% executing in the context of a transaction -- Avoids nested transactions.
 %% 
 -spec trans_execute(fun(() -> any())) -> any().
 
@@ -483,8 +487,8 @@ trans_execute(F) ->
 
 
 %% ----------------------------------------------------------------------------
-%% convert criteria into a tuple path and an rvalue.
-%%
+%% convert criteria into a tuple path and an rvalue. 
+%% 
 path2tuple(Criteria) ->
     try 
 	C = case is_binary(Criteria) of
@@ -511,7 +515,6 @@ decode(Value) ->
     catch 
 	_:_-> throw(error)
     end.
-
 
 
 % ------------------------------------------------------------------------------
@@ -541,7 +544,9 @@ to_path_elt(Element) ->
 	    Element
     end.
 
-% Lifted from Ericson's httpd_util module
+
+
+% Lifted from Ericson's httpd_util module to convert a datetime to a string
 rfc1123_date(LocalTime) ->
     {{YYYY,MM,DD},{Hour,Min,Sec}} = 
 	case calendar:local_time_to_universal_time_dst(LocalTime) of
@@ -552,8 +557,8 @@ rfc1123_date(LocalTime) ->
     lists:flatten(
       io_lib:format("~s, ~2.2.0w ~3.s ~4.4.0w ~2.2.0w:~2.2.0w:~2.2.0w GMT",
 		    [day(DayNumber),DD,month(MM),YYYY,Hour,Min,Sec])).
-%% day
 
+%% day
 day(1) -> "Mon";
 day(2) -> "Tue";
 day(3) -> "Wed";
@@ -562,8 +567,8 @@ day(5) -> "Fri";
 day(6) -> "Sat"; 
 day(7) -> "Sun".
 
-%% month
 
+%% month
 month(1) -> "Jan";
 month(2) -> "Feb";
 month(3) -> "Mar";

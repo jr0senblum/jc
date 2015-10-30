@@ -306,6 +306,3 @@ clean(Window) ->
 
     lager:debug("~p: deleted ~p records from auto_index table.",
 		[?MODULE, length(Records)]).
-
-
-       
