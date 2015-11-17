@@ -29,7 +29,7 @@
 %%% Created : 17 Mar 2015 by Jim Rosenblum <jrosenblum@jims-mbp.jhs.local>
 %%% ----------------------------------------------------------------------------
 -module(jc_cluster).
-
+-compile(nowarn_deprecated_function). % accomidate now() for v < 18
 
 %% API 
 -export([init/0]).
@@ -141,7 +141,7 @@ dynamic_db_init([]) ->
 			]),
 
     UpRec = #stats{key = 'jc_store_up_time', 
-		   value = calendar:now_to_datetime(now())},
+		   value = calendar:now_to_datetime(timestamp())},
     mnesia:dirty_write(UpRec),
     ok;
 
@@ -170,3 +170,13 @@ add_extra_nodes([Node|Nds]) ->
 	_ ->
 	    add_extra_nodes(Nds)
     end.
+
+
+% Try to used erlang 18+ timestamp(), support older versions if necessary.
+timestamp() ->
+    try
+	erlang:timestamp()
+    catch
+	error:undef ->
+	    erlang:now()
+end.

@@ -31,7 +31,7 @@
 %%% Created : 16 Oct 2011 by Jim Rosenblum
 %%% ----------------------------------------------------------------------------
 -module(jc_store).
-
+-compile(nowarn_deprecated_function). % accomidate now() for v < 18
 
 %% Jc_store public API
 -export([clear/1,
@@ -567,7 +567,7 @@ indexes(Map) ->
 %%
 
 now_to_uepoch() ->
-    {A,B,C} = now(),
+    {A,B,C} = timestamp(),
     ((A * 1000000 + B) * 1000000) + C.
 
 
@@ -613,5 +613,12 @@ to_path_elt(Element) ->
 
      
 
-
+% Try to used erlang 18+ timestamp(), support older versions if necessary.
+timestamp() ->
+    try
+	erlang:timestamp()
+    catch
+	error:undef ->
+	    erlang:now()
+end.
 

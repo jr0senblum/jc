@@ -17,7 +17,7 @@
 %%% ----------------------------------------------------------------------------
 
 -module(jc).
-
+-compile(nowarn_deprecated_function). % accomidate now() for v < 18
 
 % Put Functions
 -export([put/3, put/4,
@@ -116,7 +116,7 @@ up() ->
     {uptime, Start} = jc_store:stats(up),
     StartSecs =  calendar:datetime_to_gregorian_seconds(Start),
 
-    Now =  calendar:now_to_datetime(now()),
+    Now =  calendar:now_to_datetime(timestamp()),
     NowSecs =  calendar:datetime_to_gregorian_seconds(Now),
 
     Uptime = calendar:seconds_to_daystime(NowSecs-StartSecs),
@@ -543,6 +543,17 @@ to_path_elt(Element) ->
 	_:_ ->
 	    Element
     end.
+
+
+% Try to used erlang 18+ timestamp(), support older versions if necessary.
+timestamp() ->
+    try
+	erlang:timestamp()
+    catch
+	error:undef ->
+	    erlang:now()
+end.
+
 
 
 

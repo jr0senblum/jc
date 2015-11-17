@@ -6,7 +6,7 @@
 -setcookie somecookie
 
 ## Heartbeat management; auto-restarts VM if it dies or becomes unresponsive
--heart
+#-heart
 
 ## Enable kernel poll and a few async threads
 ##+K true
@@ -17,3 +17,7 @@
 
 ## Tweak GC to run more often
 ##-env ERL_FULLSWEEP_AFTER 10
+
+## Erlang 18 time-warp mode
+-C multi_time_warp
+-c true
