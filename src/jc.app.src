@@ -1,6 +1,6 @@
 {application, 'jc',
  [{description, "A simple, distributed, in-memory caching system"},
-  {vsn, "v0.9.5"},
+  {vsn, "1.0.0"},
   {registered, [
                 jc_analyzer,
                 jc_bridge,
@@ -38,7 +38,7 @@
              jc_store,	
              jc_sup
             ]},
-  {contributors, []},
+  {contributors, ["Jim Rosenblum"]},
   {licenses, []},
-  {links, []}
+  {links,[{"GitHub","https://github.com/jr0senblumsenblum/jc"}]}
  ]}.

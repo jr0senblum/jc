@@ -25,9 +25,6 @@
 %% API
 -export([start_link/0]).
 
-% Api to start, stop and extend item-level TTL timers.
--export([add_timer/2, 
-	 cancel_timer/1]).
 
 % Api to set and retrieve Map-level max TTLs.
 -export([set_max_ttl/2,
