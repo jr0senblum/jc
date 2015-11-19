@@ -38,7 +38,7 @@
              jc_store,	
              jc_sup
             ]},
-  {contributors, ["Jim Rosenblum"]},
-  {licenses, []},
+  {maintainers, ["Jim Rosenblum"]},
+  {licenses, ["The MIT License"]},
   {links,[{"GitHub","https://github.com/jr0senblumsenblum/jc"}]}
  ]}.
