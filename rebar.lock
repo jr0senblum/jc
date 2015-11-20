@@ -3,9 +3,6 @@
        {ref,"132a9a3c0662a2377eaf7ebee694a496a0957160"}},
   0},
  {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.7">>},1},
- {<<"jsone">>,
-  {git,"git://github.com/sile/jsone.git",
-       {ref,"30fc35548d88d74deade96c71944f42e57ef981d"}},
-  0},
+ {<<"jsone">>,{pkg,<<"jsone">>,<<"1.2.0">>},0},
  {<<"lager">>,{pkg,<<"lager">>,<<"3.0.1">>},0},
  {<<"ranch">>,{pkg,<<"ranch">>,<<"1.1.0">>},0}].

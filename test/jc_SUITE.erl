@@ -2,6 +2,8 @@
 
 
 -module(jc_SUITE).
+-compile(nowarn_deprecated_function). % accomidate now() for v < 18
+-compile(nowarn_warn_missing_spec). 
 
 -include("../include/records.hrl").
 -inclde_lib("common_test/include/ct.hrl").
@@ -165,13 +167,13 @@ sysconfig_test(_Confi) ->
     {error, badarg} = jc_eviction_manager:set_max_ttl(testmap, -100),
     {error, badarg} = jc_eviction_manager:set_max_ttl(testmap, c),
 
-    [{{bed,{<<"identifier">>}}, P},
-     {{bed,{<<"menu">>,2,<<"id">>, <<"2">>}},P2},
-     {{cow,{<<"cow">>,2,<<"id">>, <<"2">>}},P}] = lists:sort(jc_store:indexes()),
+    [{{bed,{<<"identifier">>}}, 6},
+     {{bed,{<<"menu">>,2,<<"id">>, <<"2">>}},7},
+     {{cow,{<<"cow">>,2,<<"id">>, <<"2">>}},6}] = lists:sort(jc_store:indexes()),
     
-    P2 = (P + 1),
-    [{{bed,{<<"identifier">>}}, P},
-     {{bed,{<<"menu">>,2,<<"id">>, <<"2">>}},P2}] = jc_store:indexes(bed),
+
+    [{{bed,{<<"identifier">>}}, 6},
+     {{bed,{<<"menu">>,2,<<"id">>, <<"2">>}},7}] = lists:sort(jc_store:indexes(bed)),
 
     ok = jc_store:stop_indexing(bed, "identifier"),
     ok = jc_store:stop_indexing(bed, "menu.2.id.'2'"),
@@ -189,7 +191,7 @@ meta_data_test(_Config) ->
 	      {now, NowIs},
 	      {up_time, {0, {0, 0, Secs}}}]} = bridge({up}),
 
-    Now =  calendar:now_to_datetime( now()),
+    Now =  calendar:now_to_datetime( timestamp()),
     NowString = string:left(httpd_util:rfc1123_date(Now), 16),
     NowString = string:left(Up, 16),
     NowString = string:left(NowIs, 16),
@@ -881,7 +883,7 @@ map_subscribe_test(_Config) ->
 
     jc_bridge ! {self(), {map_subscribe, bed, key, delete}}, 
     jc_bridge ! {self(), {map_subscribe, evs, any, any}}, 
-    timer:sleep(400),
+    timer:sleep(600),
     
     First = mnesia:dirty_first(ps_sub),
     Second = mnesia:dirty_next(ps_sub, First),
@@ -1056,3 +1058,12 @@ flush() ->
 	0 ->
 	    ok
     end.
+
+% Try to used erlang 18+ timestamp(), support older versions if necessary.
+timestamp() ->
+    try
+	erlang:timestamp()
+    catch
+	error:undef ->
+	    erlang:now()
+end.
