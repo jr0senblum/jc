@@ -20,7 +20,7 @@
                   ranch,
                   lager,
                   jsone,
-                  ej
+                  jwalk
                  ]},
   {included_applications, [mnesia]},
   {env,[]},
