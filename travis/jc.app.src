@@ -33,7 +33,7 @@
     compiler,
     lager,
     jsone,
-    ej,
+    jwalk,
     ranch
    ]},
   {included_applications, [mnesia]},
