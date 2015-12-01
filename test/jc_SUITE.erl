@@ -889,10 +889,10 @@ map_subscribe_test(_Config) ->
     Second = mnesia:dirty_next(ps_sub, First),
 
 
-    [{ps_sub, {map_sub, evs, any, any}, Set2}] = 
+    [{ps_sub, {map_sub, evs, any, any}, Set1}] = 
 	mnesia:dirty_read(ps_sub, Second),
 
-    [{ps_sub, {map_sub, bed, key, delete}, Set1}] = 
+    [{ps_sub, {map_sub, bed, key, delete}, Set2}] = 
 	mnesia:dirty_read(ps_sub, First),
 
     sets:is_element(self(), Set1),
