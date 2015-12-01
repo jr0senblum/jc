@@ -889,15 +889,15 @@ map_subscribe_test(_Config) ->
     Second = mnesia:dirty_next(ps_sub, First),
 
 
-    [{ps_sub, {map_sub, evs, any, any}, Set1}] = 
+    [{ps_sub, {map_sub, evs, any, any}, X}] = 
 	mnesia:dirty_read(ps_sub, Second),
 
-    [{ps_sub, {map_sub, bed, key, delete}, Set2}] = 
+    [{ps_sub, {map_sub, bed, key, delete}, Y}] = 
 	mnesia:dirty_read(ps_sub, First),
 
-    sets:is_element(self(), Set1),
-    sets:is_element(self(), Set2),
-
+    sets:is_element(self(), X),
+    sets:is_element(self(), Y),
+   
     timer:sleep(400),
     jc:put(bed, otherkey, 2),
     jc:put(bed, key, 2),     % put causes evict of previous value
