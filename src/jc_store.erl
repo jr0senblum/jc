@@ -574,7 +574,7 @@ now_to_uepoch() ->
 % walk the path of a decoded JSON object using the ej library.
 ej_get(Paths, Obj) ->
     try
-	ej:get(Paths, Obj)
+	jwalk:get(Paths, Obj)
     catch
 	_:_ -> jc_ej_error
     end.

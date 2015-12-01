@@ -6,6 +6,7 @@ JC
 
 
 [![Build Status](https://travis-ci.org/jr0senblum/jc.svg)](https://travis-ci.org/jr0senblum/jc)
+[![hex.pm version](https://img.shields.io/hexpm/v/jc.svg)](https://hex.pm/packages/jc)
 
 ###Features
 * Cache entries are Map, Key, Value, [TTL], [Sequence]
