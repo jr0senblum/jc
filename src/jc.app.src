@@ -1,6 +1,6 @@
 {application, 'jc',
  [{description, "A simple, distributed, in-memory caching system"},
-  {vsn, "1.0.1"},
+  {vsn, "1.0.2"},
   {registered, [
                 jc_analyzer,
                 jc_bridge,
