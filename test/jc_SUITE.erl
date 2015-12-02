@@ -889,14 +889,27 @@ map_subscribe_test(_Config) ->
     Second = mnesia:dirty_next(ps_sub, First),
 
 
-    [{ps_sub, {map_sub, evs, any, any}, X}] = 
-	mnesia:dirty_read(ps_sub, First),
+    try 
+        [{ps_sub, {map_sub, evs, any, any}, X1}] = 
+            mnesia:dirty_read(ps_sub, First),
+        sets:is_element(self(), X1)
+    catch
+        _:_ ->
+        [{ps_sub, {map_sub, evs, any, any}, X2}] = 
+                mnesia:dirty_read(ps_sub, Second),
+            sets:is_element(self(), X2)
+    end,
 
-    [{ps_sub, {map_sub, bed, key, delete}, Y}] = 
-	mnesia:dirty_read(ps_sub, Second),
+    try [{ps_sub, {map_sub, bed, key, delete}, Y}] = 
+             mnesia:dirty_read(ps_sub, Second),
+            sets:is_element(self(), Y)
+    catch
+        _:_ ->
+            [{ps_sub, {map_sub, bed, key, delete}, Y2}] = 
+                mnesia:dirty_read(ps_sub, First),
+            sets:is_element(self(), Y2)
+    end,
 
-    sets:is_element(self(), X),
-    sets:is_element(self(), Y),
    
     timer:sleep(400),
     jc:put(bed, otherkey, 2),
