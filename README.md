@@ -224,8 +224,15 @@ might look as follows:
     client:send("{put, evs, \"1\", \"{\\\"value:\\\":true}\"}")
     <<"{\"ok\":\"1\"}">>
 
+    client:send("{get, evs, \"1\"}"),
+    <<"{\"ok\":"{\\\"value\\\":true}\"}">>
+    
+    client:send("{put, evs, 1, \"{\\\"value:\\\":true}\"}")
+    <<"{\"ok\":1}">>
+
     client:send("{get, evs, 1}"),
     <<"{\"ok\":"{\\\"value\\\":true}\"}">>
+    
 
 
 ###Configuration
