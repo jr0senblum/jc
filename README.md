@@ -261,7 +261,32 @@ might look as follows:
 * jc_bridge
   * Server that acts as a proxy between an external process and
   jc functionality
+* jc_netsplit
+  * Looks for evidence of node dis/apperation and implements a recovery
+    strategy
 
+###Net Split/Join Strategy
+Mnesia does not merge on its own when a node joins (returns) to a mesh of nodes.
+There are two situations where this is relevant:
+
+* j_cache nodes start in a disconnected state so more than one initiates a new
+cluster and then, subsequently, those nodes join into one cluster;
+* A node drops out of the cluster due to some network glitch and then rejoins.
+
+To handle these situations, whenever a cluster is created by a Node (node@123.45.67, 
+for example), it creates a ClusterId - its Node name (node@123.45.67), for that cluster.
+
+Given this ClusterId, we have the following strategy:
+
+1. _Cluster Creation_: creates an initial ClusterId;
+2. _Nodedown_: If the Node that created the cluster dissapears, a surviving Node changes the
+   ClusterId such that ClusterId is now this new Node's name. In the case of a
+   disconnected newtwork, one of the islands will have the original ClusterId Node 
+   dissapear, and it will create a new one as described.
+3. _Nodeup_ Whenever a Node appears, an arbitary Node ensures that any Nodes that report
+    a different ClusterId (different than the arbitrary Node's ClusterId) are killed to be
+    restarted by the hearbeat application. If any Nodes required restarting, the entire 
+    cache is flushed.
 
 ###Build Instructions
 * Ensure that Erlang 17 or higher is installed
@@ -277,7 +302,7 @@ might look as follows:
     
      or
 
-     `[root@db01] ./rebar3 prod release`
+     `[root@db01] ./rebar3 as prod release`
    	
 
 ###Documentation

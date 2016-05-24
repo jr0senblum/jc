@@ -14,13 +14,23 @@
 %%% <li>Table max_ttl holds {map_name, Secs} defining how long items in a
 %%%     given map are allowed to live before being evicted. The eviction is
 %%%     done via a process that runs at a configured interval. </li>
-%%% <li>Table stats holds (currently) the datetime of application start.</li>
+%%% <li>Table stats holds (currently) the datetime of application start.
+%%%     and a ClusterId - the name of the Node that started the cluster -
+%%%     that is used to recognize net joins after a split.</li>
 %%% <li>Table ps_sub is a local table and uses a subscription pattern as a key 
 %%%     that is associated to a set of process ids (PIDs) subscribed to the 
 %%%     pattern.</li>
 %%% <li>Table ps_client is a local table and has an entry for each subscribing 
 %%%     PID and stores what mechansim is being used to monitor that node - link 
 %%%     or monitor.</li>
+%%% <li>Table seq stores the highest, per Map sequence number seen. Used by 
+%%%     jc_s api that dissalows put and evict opperation with a sequence
+%%%     number less than the greatest one seen -- helps with consistency. </li>
+%%% <li>Tables to_index and auto_index support indexing in support of the _match
+%%%     operations which search by json.path.criteria. auto_index tracks
+%%%     the frequency of particular json.path.search.criteria and if that use
+%%%     is sufficient, an index is initiated. The details of the index
+%%%     are stored in the to_index table.</li>
 %%% </ul>
 %%%
 %%% Desiged to create a diskless cluster (schema is RAM and all tables in RAM)
@@ -32,7 +42,10 @@
 -compile(nowarn_deprecated_function). % accomidate now() for v < 18
 
 %% API 
--export([init/0]).
+-export([init/0,
+         change_cluster_id/0,
+         check/1,
+         get_cluster_id/0]).
 
  % Record and type definitions.
 -include("../include/records.hrl").   
@@ -40,11 +53,72 @@
 % Time to wait for mnesia tables to initialize when joining cluster.
 -define(WAIT_FOR_TABLES_MS, 30000). 
 
+-type cluster_id() :: node().
 
 
 %%% ============================================================================
 %%% Library Interface
 %%% ============================================================================
+
+
+%% -----------------------------------------------------------------------------
+%% @doc If this node doesn't have the same ClusterId as the supplied one,
+%% its an indciation of a net-join of a orphaned or island node. Likey to have
+%% consistancy issues. Kill oneself and be restarted by the heartbeat.
+%%
+-spec check(ClusterId::cluster_id()) -> good | bad.
+
+check(ClusterId) ->
+    case get_cluster_id() of
+        ClusterId ->
+            lager:notice("~p: I (~p) have the correct cluster_id.", 
+                         [?MODULE, node()]),
+            good;
+        no_exists -> 
+            lager:notice("~p: I (~p) am joining an existing cluster, all good.",
+                         [?MODULE, node()]),
+            good;
+        _WrongId ->
+            lager:warning("~p: I (~p) have conflicting cluster_id, time to die.", 
+                          [?MODULE, node()]),
+            spawn(fun kamakazee/0),
+            bad
+    end.
+
+
+%% -----------------------------------------------------------------------------
+%% @doc Change the cluster_id: used when a Node that had been the ClusterId
+%% Node of record dies.
+%%
+-spec change_cluster_id() -> ok.
+
+change_cluster_id() ->
+    mnesia:dirty_write(#stats{key = 'cluster_id', value = node()}),
+    ok.
+                        
+
+%% -----------------------------------------------------------------------------
+%% @doc Return the current cluster_id or no_exists if this Node hasn't made
+%% it through mnesia cluster creation / join.
+%% 
+-spec get_cluster_id() -> cluster_id() | no_exists.
+
+get_cluster_id() ->
+    try mnesia:dirty_read(stats, 'cluster_id') of
+        [#stats{value=Value}] ->
+            Value
+    catch
+        exit:{aborted, {no_exists, _}} ->
+            no_exists
+    end.
+
+
+% kill this node...
+%
+kamakazee() ->
+    lager:notice("~p: ~p seppuku.", [?MODULE, node()]),
+    exit(whereis(jc_sup), kill). 
+    
 
 
 %% -----------------------------------------------------------------------------
@@ -140,9 +214,11 @@ dynamic_db_init([]) ->
 			 {local_content, true}
 			]),
 
-    UpRec = #stats{key = 'jc_store_up_time', 
-		   value = calendar:now_to_datetime(timestamp())},
-    mnesia:dirty_write(UpRec),
+    mnesia:dirty_write(#stats{key = 'jc_store_up_time', 
+                              value = calendar:now_to_datetime(timestamp())}),
+
+    mnesia:dirty_write(#stats{key = 'cluster_id', value = node()}),
+
     ok;
 
 dynamic_db_init(CacheNodes) ->
@@ -155,13 +231,13 @@ add_extra_nodes([Node|Nds]) ->
 	{ok, [Node]} ->
 	    lager:info("~p: joining cluster: ~p", [?MODULE, nodes()]),
 	    mnesia:add_table_copy(schema, node(), ram_copies),
+	    mnesia:add_table_copy(stats, node(), ram_copies),
 	    mnesia:add_table_copy(key_to_value, node(), ram_copies),
 	    mnesia:add_table_copy(seq, node(), ram_copies),
 	    mnesia:add_table_copy(auto_index, node(), ram_copies),
 	    mnesia:add_table_copy(to_index, node(), ram_copies),
 	    mnesia:add_table_copy(ttl, node(), ram_copies),
 	    mnesia:add_table_copy(max_ttl, node(), ram_copies),
-	    mnesia:add_table_copy(stats, node(), ram_copies),
 	    mnesia:add_table_copy(ps_sub, node(), ram_copies),
 	    mnesia:add_table_copy(ps_client, node(), ram_copies),
 	    Tables = mnesia:system_info(tables),

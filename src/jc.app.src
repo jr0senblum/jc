@@ -1,10 +1,11 @@
 {application, 'jc',
  [{description, "A simple, distributed, in-memory caching system"},
-  {vsn, "1.0.4"},
+  {vsn, "1.2.0"},
   {registered, [
                 jc_analyzer,
                 jc_bridge,
                 jc_eviction_manager,	
+                jc_netsplit,
                 jc_psub,
                 jc_sequence,
                 jc_sup
@@ -31,6 +32,7 @@
              jc_bridge,
              jc_cluster,
              jc_eviction_manager,	
+             jc_netsplit,
              jc_protocol,
              jc_psub,
              jc_s,

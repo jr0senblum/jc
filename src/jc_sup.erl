@@ -61,8 +61,12 @@ init([]) ->
 	  {jc_analyzer, start_link, []},
 	  permanent, 2000, worker, [jc_analyzer]},
 
+    JN = {jc_netsplit, 
+	  {jc_netsplit, start_link, []},
+	  permanent, 2000, worker, [jc_netsplit]},
+
     JB = {jc_bridge, 
 	  {jc_bridge, start_link, []},
 	  permanent, 2000, worker, [jc_bridge]},
 
-    {ok, {{one_for_one, 60, 3600}, [PS, EM, JS, JA, JB]}}.
+    {ok, {{one_for_one, 60, 3600}, [PS, EM, JS, JA, JN, JB]}}.
