@@ -2,7 +2,7 @@ JC
 ====
 ##Erlang, Distributable, In-Memory Cache
 
-### Pub/Sub; JSON-Query; Consistency Assist; and Simple, TCP Interoperability Protocol.
+### Featruing: Pub/Sub, JSON-query, consistency support, and a simple, TCP interop. protocol.
 
 
 [![Build Status](https://travis-ci.org/jr0senblum/jc.svg)](https://travis-ci.org/jr0senblum/jc)

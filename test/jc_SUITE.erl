@@ -206,7 +206,7 @@ meta_data_test(_Config) ->
      {ps_sub,{records,0},{bytes,_}},
      {schema,{records,10},{bytes,_}},
      {seq,{records,0},{bytes,_}},
-     {stats,{records,1},{bytes,_}},
+     {stats,{records,2},{bytes,_}},
      {to_index,{records,0},{bytes,_}},
      {ttl,{records,0},{bytes,_}}] = lists:sort(T),
     
