@@ -176,7 +176,7 @@ Identical to the Create and Evict family of functions of the jc module
   {From, {node_topic_unsub}} -> ok.
 
 
-### Interoperability: Socket Protocol
+### Interoperability: Socket Protocol - EXPIREMENTAL
 Binary-encoded, string protocol used to provide socket-based
 interoperability with JC. 
 
