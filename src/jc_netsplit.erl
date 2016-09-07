@@ -1,7 +1,7 @@
 %%% ----------------------------------------------------------------------------
 %%% @author Jim Rosenblum <jrosenblum@Jims-MacBook-Pro.local>
 %%% @copyright (C) 2016, Jim Rosenblum 
-%%% @doc Mnesia does not merge on its own after a net split/heal. Also, there
+%%% @doc Mnesia does not merge on its own after a net split. Also, there
 %%% is a chance that two Nodes start-up unaware of one another and then the
 %%% erlang mesh is created; or a race condition allows two Nodes to create
 %%% independent mnesia 'nodes'. So, each cluster instance will get a unique
@@ -14,17 +14,18 @@
 %%% as everyone else (all is good), or not (bad). If bad, we should kill all 
 %%% Nodes such that there is one, consistant ClusterId and then flush.
 %%%
-%%% cluster creation: ClusterId established. </br>
+%%% cluster creation: ClusterId established. 
 %%%
 %%% nodedown: ClusterId is changed if the Node whose name = ClusterId went 
 %%% down. When there is a split one island is guaranteed to change its 
-%%% ClusterId</br>
+%%% ClusterId
 %%%
-%%% nodeup: Either </br>
+%%% nodeup: Either 
 %%% A Node appears having joined the existing cluster and therefore will report 
-%%% the same ClusterId - good; or </br>
+%%% the same ClusterId - good; or 
+%%%
 %%% It appears believing it is part of a different cluster in which case the 
-%%% node will report different ClusterId - bad. </br>
+%%% node will report different ClusterId - bad. 
 %%% 
 %%% For any bad outcome, all nodes having the 'different' ClusterId are killed
 %%% to be restarted by the heart process, and a survivor does a flush.
