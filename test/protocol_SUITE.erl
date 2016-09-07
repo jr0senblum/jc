@@ -127,9 +127,6 @@ put_get_test(_Config) ->
            end,
     
                      
-
-    R2 = get_result(),
-
     t:send("{put, bed, \"1\", 1}"),
     <<"{\"ok\":\"1\"}">> = get_result(),
     
