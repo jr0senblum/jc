@@ -118,6 +118,16 @@ put_get_test(_Config) ->
     t:send("{values_match, json, \"second=true\"}"),
 
     R2 = list_to_binary("[{\"key\":\"1\",\"value\":" ++ J1 ++ "},{\"key\":\"2\",\"value\":" ++ J2 ++ "}]"),
+    R2Alt = list_to_binary("[{\"key\":\"2\",\"value\":" ++ J2 ++ "},{\"key\":\"1\",\"value\":" ++ J1 ++ "}]"),
+    
+    true = case get_result() of
+               R2 -> true;
+               R2Alt -> true;
+               _ -> false
+           end,
+    
+                     
+
     R2 = get_result(),
 
     t:send("{put, bed, \"1\", 1}"),
