@@ -105,13 +105,11 @@ put_get_test(_Config) ->
     <<"{\"ok\":[\"1\",\"3\",\"4\"]}">> = get_result(),
 
     t:send("{values, bed}"),
-    true = case get_result() of 
-               <<"{\"ok\":[1,3.3,[1,2,3]]}">> -> 
-                   true;
-               X ->
-                   X == <<"{\"ok\":[1,3.3,[1,2,3]]}">> 
-           end,
-
+    true = 
+        case lists:sort(maps:get(<<"ok">>,jsone:decode(get_result()))) of
+            [1,3.3,[1,2,3]] -> true
+        end,
+    
 
     t:send("{values_match, json, \"first.second=1\"}"),
     R = list_to_binary("[{\"key\":\"1\",\"value\":" ++ J1 ++ "}]"),
