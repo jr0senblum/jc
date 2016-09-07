@@ -387,8 +387,10 @@ put_all_test(_Config)->
     KVs = lists:reverse(Hits),
 
     {ok, 100} = bridge({put_all, bed, KVs, 2}),
-    {ok, Vs} = bridge({values, bed}),
-    {ok, Ks} = bridge({key_set, bed}),
+    {ok, TestVs} = bridge({values, bed}),
+    lists:sort(Vs) == lists:sort(TestVs),
+    {ok, TestKs} = bridge({key_set, bed}),
+    lists:sort(Ks) == lists:sort(TestKs),
 
     timer:sleep(2100),
     {ok, {[], M}} = bridge({get_all, bed, Ks}),
