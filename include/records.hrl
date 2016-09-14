@@ -1,22 +1,21 @@
 % Types
 -type seconds()          :: non_neg_integer().
+-type ttl()              :: seconds().
+-type time_stamp()       :: seconds().
 
 -type map_name()         :: any().
 -type key()              :: any().
 -type value()            :: any().
--type ttl()              :: seconds().
+
 -type rec_ref()          :: reference().
--type time_stamp()       :: seconds().
 
 
-% Key_to_value - an ordered_set table whose key is {key, map}. Ref is used by
-% jc_eviction manager as the key of the cache item to evict. i1 - i4 are 
-% fields that can be used to hold values pulled from a json value to support a
-% querry-select feature (see README and jc_store:start_indexing/2 for more. Seq
-% is an integer supplied by the client that, if provided, is expected to be
-% strictly monotinic. If it is not, the put with the non monotonic value will
-% be evicted and the old one re-inserted.
-%
+
+% Key_to_value - an ordered_set table whose key is {key, map_name}. Ref is used
+% by jc_eviction manager as the key of the cache item to evict. i1 - i4 are 
+% fields that can be used to hold values pulled from a json value to support an
+% indexed querry-select feature (see README and jc_store:start_indexing/2 for 
+% more).
 -record (key_to_value,  
 	 {jc_key         :: {key(), map_name()}, 
 	  map            :: map_name(),
@@ -35,14 +34,19 @@
 -type key_to_value()     :: #key_to_value{}.
 
 
+% Seq_no is an integer supplied by the client that, if provided, MUST be
+% strictly monotinic and is used as a sequence number to ensure that a stale
+% operation doesn't make it to jcache after the fact and clobber a more recent
+% put or evict operation.
 -record(seq,
 	{map            :: map_name(),
 	 seq_no         :: jc_sequence:seq()
 	}).
 
-% Holds information about json-path's that will be the target of a query-sellect
-% for a given map. Position indicates which column (i1-i4) in key_to_value to 
-% use.
+
+% Defines the index for a given map and JSON path. Used for query-selects and
+% evicts. Position indicates which column (i1-i4) in key_to_value to store the
+% index.
 -record (to_index,
 	 {map_path      :: {map_name(), tuple()},
 	  map_name      :: map_name(),
@@ -50,6 +54,8 @@
 	 }).
 	  
 
+% Record that keeps track of the accounting around a JSON query as part of 
+% determining whether an index should be initiatied.
 -record (auto_index,
 	 {map_path      :: {map_name(), tuple()} | '_',
 	  count         :: non_neg_integer() | '_',
@@ -86,13 +92,13 @@
 	 }).
 
 
-
 % Jc_psub records. Subscription patterns and the set of PIDS subscribed to those
 % patterns.
 -record (ps_sub,
 	 {subscription            :: term(),
 	  clients = sets:new()    :: sets:set()
 	 }).
+
 
 % Ps_client records. Unique processes that are subscribers, includings what type
 % of mechanism is used to monitor the client - link to the Pid or monitor the 

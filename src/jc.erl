@@ -1,14 +1,15 @@
 %%% ----------------------------------------------------------------------------
 %%% @author Jim Rosenblum
-%%% @copyright (C) 2011 - 2015, Jim Rosenblum
+%%% @copyright (C) 2011 - 2017, Jim Rosenblum
 %%% @doc This module wraps the mnesia-interacting, lower-level functions
 %%% implemented in {@link jc_store. jc_store} to provide a public, DIRTY,
 %%% set of opperations. {@link jc_s. jc_s} provides functions that take a 
 %%% sequence parameter to better support serilization (consistency) without.
 %%% resorting to transactions.
 %%%
-%%% JC can be called directly by Erlang clients; or,
+%%% The jc module can be called directly by Erlang clients; or,
 %%% Java node -> JInterface -> {@link jc_bridge. jc_bridge} -> jc; or,
+%%% experimentally, 
 %%% Application -> TPC/IP -> {@link jc_protocol. jc_protocol} -> jc
 %%%
 %%% @version {@version}
@@ -29,7 +30,6 @@
 	 flush/0, flush/1,
          remove_items/2]).
 
-
 % Get Functions
 -export([contains_key/2,
 	 get/2,
@@ -38,8 +38,11 @@
 	 values/1,
 	 values_match/2]).
 
-% CACHE META-INFO SUPPORT
--export([cache_nodes/0, cache_size/0, map_size/1, maps/0, up/0, stop/0]).
+% Control
+-export([stop/0]).
+
+% Cache Meta-data support
+-export([cache_nodes/0, cache_size/0, map_size/1, maps/0, up/0]).
 
 % Used by jc_s for evict_match
 -export([fun_match/3]).
@@ -47,18 +50,18 @@
 % Used by eviction manager to evict an entry based on a reference
 -export ([delete_record_by_ref/1]).
 
-
 % definitions of global records and types.
 -include("../include/records.hrl").
 
 
+% ttl is either infinity (0)  or an integer > 0.
 -define(INFINITY, 0).
 -define(VALID(X), is_integer(X) andalso (X >= 0)).
 
 
 
 %% =============================================================================
-%% Meta data API
+%% Cache control
 %% =============================================================================
 
 
@@ -74,6 +77,12 @@ stop()->
     application:stop(lager),    
     ok.
     
+
+
+%% =============================================================================
+%% Meta data API
+%% =============================================================================
+
 
 %% -----------------------------------------------------------------------------
 %% @doc Return a sorted list of all maps currently in the cache. 
