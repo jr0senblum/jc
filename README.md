@@ -52,7 +52,7 @@ JC
   broadcast arbitrary messages under those topic names
   * Clients can subscribe to node-up and node-down events 
 * Interopability
-  * Binary string over TCP returning JSON
+  * Binary string over TCP returning JSON (EXPERIMENTAL)
   * Bridge process that accepts messages from a client indicating
     cache operations, executes the cache operations and returns the
     results to the client. This has been used with JInterface to 
@@ -176,7 +176,7 @@ Identical to the Create and Evict family of functions of the jc module
   {From, {node_topic_unsub}} -> ok.
 
 
-### Interoperability: Socket Protocol - EXPIREMENTAL
+### Interoperability: Socket Protocol - EXPERIMENTAL
 Binary-encoded, string protocol used to provide socket-based
 interoperability with JC. 
 
