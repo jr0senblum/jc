@@ -1,6 +1,6 @@
 JC  
 ====
-##Erlang, Distributable, In-Memory Cache
+## Erlang, Distributable, In-Memory Cache
 
 ### Featuring: Pub/Sub, JSON-query, consistency support, and a simple, TCP interop. protocol.
 
@@ -9,7 +9,7 @@ JC
 [![hex.pm version](https://img.shields.io/hexpm/v/jc.svg)](https://hex.pm/packages/jc)
 
 
-###Features
+### Features
 * Cache entries are Map, Key, Value, [TTL], [Sequence]
   * Maps represent a name-space for Keys - similar to the notion
     of 'bucket'
@@ -61,7 +61,7 @@ JC
 
 
 
-###Cache Functions (jc)
+### Cache Functions (jc)
 * Create
   * put(Map, Key, Value, [TTLSecs]) -> {ok, Key} | {error, badarg}
   * put_all(Map, [{K,V},{K,V},...], [TTLSecs]) -> {ok, CountOfSuccessfulPuts} |
@@ -114,12 +114,12 @@ Identical to the Create and Evict family of functions of the jc module
 
 
 
-###Eviction Manager Functions (jc_eviction_manager)
+### Eviction Manager Functions (jc_eviction_manager)
 * set_max_ttl(Map, Secs) -> ok | {error, badarg}
 * get_max_ttls() -> [{Map, Secs}, ...]
 
 
-###Pub/Sub Functions (jc_psub)
+### Pub/Sub Functions (jc_psub)
 * map_subscribe(Pid, Map, Key|any, write|delete|any) -> ok | {error, badarg}
 * map_unsubscribe(Pid, Map, Key|any, write|delete|any) -> ok | {error, badarg}
   * client receives
@@ -142,7 +142,7 @@ Identical to the Create and Evict family of functions of the jc module
   `{jc_node_events, {nodeup, UppedNode, [ActiveNodes],[ConfiguredNodes]}}`
 
 
-###Indexing Functions (jc_store)
+### Indexing Functions (jc_store)
   * start_indexing(Map, Path={bed,"menu.id"}) -> ok |
                                                {error, no_indexes_available} |
 							       {error, Term}
@@ -152,7 +152,7 @@ Identical to the Create and Evict family of functions of the jc module
   * indexes() -> {indexes, [{{Map, Path}, Position},...]} for all indexes
 
 
-###Interoperability: Bridge (jc_bridge)
+### Interoperability: Bridge (jc_bridge)
  * All functions from the jc, jc_s, jc_eviction_manager, jc_psub
  and jc_store are supported and are of the form:
  
@@ -236,13 +236,13 @@ might look as follows:
     
 
 
-###Configuration
+### Configuration
 * Application configuration is in sys.config which is heavily
   commented
 * Cookie, node-name and auto-restart of VM controlled by vm.args
 
 
-###Application Modules
+### Application Modules
 * jc_cluster
   * Simple, mnesia-based, cluster creation and management
 * jc, jc_s, jc_store, jc_eviction_manager
@@ -266,7 +266,7 @@ might look as follows:
   * Looks for evidence of node dis/apperation and implements a recovery
     strategy
 
-###Net Split/Join Strategy
+### Net Split/Join Strategy
 Mnesia does not merge on its own when a node joins (returns) to a mesh of nodes.
 There are two situations where this is relevant:
 
@@ -289,7 +289,7 @@ Given this ClusterId, we have the following strategy:
     restarted by the hearbeat application. If any Nodes required restarting, the entire 
     cache is flushed.
 
-###Build Instructions
+### Build Instructions
 * Ensure that Erlang 17 or higher is installed
 * Get the Source Code from Stash
 
@@ -306,7 +306,7 @@ Given this ClusterId, we have the following strategy:
      `[root@db01] ./rebar3 as prod release`
    	
 
-###Documentation
+### Documentation
 
    `[root@dbo1] ./rebar3 edoc`
 
