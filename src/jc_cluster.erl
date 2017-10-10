@@ -179,7 +179,7 @@ dynamic_db_init([]) ->
 
     mnesia:create_table(key_to_value,
 			[{attributes, record_info(fields, key_to_value)},
-			 {type, ordered_set},
+			 {type, set},
 			 {index, [map, key, ref, create_tm]}
 			]),
     mnesia:create_table(seq,
