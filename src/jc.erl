@@ -145,7 +145,7 @@ cache_nodes() ->
     Configured = application:get_env(jc, cache_nodes,[]),
     MnesiaUp = jc_store:up_nodes(),
     Running = [N || N <- MnesiaUp, 
-		   undefined /= rpc:call(N, erlang, whereis, [jc_bridge], 1000)],
+		   is_pid(rpc:call(N, erlang, whereis, [jc_bridge], 1000))],
     {{active, lists:sort(Running)}, {configured, lists:sort(Configured)}}.
 
 
@@ -222,7 +222,8 @@ put_all(_m, _K, _T) ->
 
 clear(Map) ->
     lager:debug("~p: clear map ~p.", [?MODULE, Map]),
-    jc_store:clear(Map),
+    F = fun() -> jc_store:clear(Map) end,
+    trans_execute(F),
     ok.
 
 
@@ -490,7 +491,7 @@ fun_match(Map, Criteria, Fun) ->
 trans_execute(F) ->
     case mnesia:is_transaction() of
 	true ->     F();
-	false ->    mnesia:sync_dirty(F)
+	false ->    mnesia:async_dirty(F)
     end.
 
 
