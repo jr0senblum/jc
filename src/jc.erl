@@ -491,7 +491,7 @@ fun_match(Map, Criteria, Fun) ->
 trans_execute(F) ->
     case mnesia:is_transaction() of
 	true ->     F();
-	false ->    mnesia:sync_dirty(F)
+	false ->    mnesia:async_dirty(F)
     end.
 
 
