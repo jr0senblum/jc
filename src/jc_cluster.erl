@@ -159,8 +159,8 @@ init()->
 
 
 %% -----------------------------------------------------------------------------
-%% @private Jcache is considered loaded if jc_psub is up - it is the last gen_server
-%% started by the superviosr.
+%% @private Jcache is considered loaded if jc_psub is up - it is the last 
+%% gen_server started by the superviosr.
 %%
 -spec jc_loaded(Node::node()) -> true | false.
 

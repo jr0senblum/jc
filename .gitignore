@@ -33,3 +33,5 @@ _build
 variables-ct
 test/ct_run.ct@c4b301cb0a29.2017-10-09_19.10.46
 variables-ct@c4b301cb0a29
+.#jc.erl
+#*
