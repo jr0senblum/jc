@@ -119,7 +119,7 @@ handle_cast(Msg, State) ->
 
 % Special message from jc_psu subscription received bwhen a cache node goes up
 % or down.
-handle_info({jc_node_events, {_UpOrDown, _Node, Active, _C}}, State) ->
+handle_info({_From, {jc_node_events, {_Type, _Node, Active, _C}}}, State) ->
     put(cnt, length(Active)),
     put(nodes, lists:sort(Active)),
     {noreply, State};
