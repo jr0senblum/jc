@@ -18,7 +18,9 @@
 
 
 %% Module API
--export([start_link/0, do/1]).
+-export([start_link/0]).
+
+-export([do/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -54,6 +56,7 @@ start_link() ->
 
 do(Message) ->
     ?SERVER ! {self(), Message}.
+
 
 
 %%% ----------------------------------------------------------------------------
@@ -114,16 +117,23 @@ handle_cast(Msg, State) ->
 %% -----------------------------------------------------------------------------
 %% @private Handling info messages:
 %% Execute the requested j_cache operation and return the answer to requester.
+%% Also recieve the jc_psub, subscription message notifiying of node up  down.
 %%
 -spec handle_info(any(), #jc_bridge_state{}) -> {noreply, #jc_bridge_state{}}.
 
-% Special message from jc_psu subscription received bwhen a cache node goes up
-% or down.
 handle_info({_From, {jc_node_events, {_Type, _Node, Active, _C}}}, State) ->
     put(cnt, length(Active)),
     put(nodes, lists:sort(Active)),
+    lager:info("~p: node change. New actives: ~p.", [?MODULE, Active]),
     {noreply, State};
 
+handle_info({From, {which, Key}}, State) ->
+    % Hash key to cache_node responsible for destructive operations
+    Cnt = get(cnt),
+    Nodes = get(nodes),
+    _Pid = spawn(fun() -> From ! get_server(Key, Cnt, Nodes) end)
+    {noreply, State};
+    
 handle_info({From, {map_subscribe, Map, Key, Ops}}, State) ->
     _Pid = spawn(fun()->From ! jc_psub:map_subscribe(From, Map, Key, Ops) end),
     {noreply, State};
@@ -172,15 +182,7 @@ handle_info({From, {get_max_ttls}}, State) ->
 
 
 handle_info({From, {put, Map, Key, Value}} = Message, State) ->
-    Cnt = get(cnt),
-    Nodes = get(nodes),
-    F = fun() ->
-            case get_server(Key, Cnt, Nodes) of
-	        self -> From ! jc:put(Map, Key, Value);
-                Server -> Server ! Message
-	    end
-	 end,
-    spawn(F),
+    _Pid = spawn(fun() -> From ! jc_s:put(Map, Key, Value) end),
     {noreply, State};
 
 handle_info({From, {put_s, Map, Key, Value, Seq}}, State) ->
@@ -229,15 +231,7 @@ handle_info({From, {evict_map_since, Map, Secs}}, State) ->
     {noreply, State};
 
 handle_info({From, {evict, Map, Key}} = Message, State) ->
-    Cnt = get(cnt),
-    Nodes = get(nodes),
-    F = fun() ->
-            case get_server(Key, Cnt, Nodes) of
-	        self -> From ! jc:evict(Map, Key);
-                Server -> Server ! Message
-	    end
-	 end,
-    spawn(F),
+    _Pid = spawn(fun() -> From ! jc:evict(Map, Key) end),
     {noreply, State};
     
 handle_info({From, {evict_s, Map, Key, Seq}}, State) ->
@@ -368,13 +362,11 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 
+%% -----------------------------------------------------------------------------
+%% @private Given a Key, the number of nodes and list of nodes, return the node
+%% responsible for the Key.
+%%
 
 get_server(K, Cnt, Nodes) ->
     Bucket = erlang:phash2(K, Cnt) + 1, 
-    Selected = lists:nth(Bucket, Nodes),
-    case Selected of
-        Selected when Selected == node() ->
-	    self;
-	_Other ->
-	    {jc_bridge, Selected}
-    end.
+    lists:nth(Bucket, Nodes).

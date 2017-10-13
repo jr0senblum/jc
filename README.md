@@ -51,12 +51,6 @@ JC
   * Clients can create and subscribe to arbitrary 'topics' and 
   broadcast arbitrary messages under those topic names
   * Clients can subscribe to node-up and node-down events 
-* Interopability
-  * Binary string over TCP returning JSON (EXPERIMENTAL)
-  * Bridge process that accepts messages from a client indicating
-    cache operations, executes the cache operations and returns the
-    results to the client. This has been used with JInterface to 
-    interoperate with CLOJURE and Java clients
 * Fine-grained logging via Lager
 
 
@@ -134,8 +128,7 @@ Identical to the Create and Evict family of functions of the jc module
   * Broadcasts Value to all
   subscribers of Topic
 * topic_subscribe(Pid, jc_node_events, any) -> ok 
-  * subscribtes the user
-  to node up and node down events:
+  * subscribtes the user to node up and node down events:
   
   `{jc_node_events, {nodedown, DownedNode, [ActiveNodes],[ConfiguredNodes]}}`
   
@@ -176,66 +169,6 @@ Identical to the Create and Evict family of functions of the jc module
   {From, {node_topic_unsub}} -> ok.
 
 
-### Interoperability: Socket Protocol - EXPERIMENTAL
-Binary-encoded, string protocol used to provide socket-based
-interoperability with JC. 
-
-All messages to JC are string representations of a tuple. All
-messages form the caching system to the client are JSON
-
-The protocol defines three message types: CONNECT, CLOSE and COMMAND all 
-of which are binary strings consisting of an 8-byte size followed by the
-actual command messages.
-
-Responses are also binary strings with an 8-byte size prefix.
-
-The CONNECT command initiates a session, 
-
-    M = <<"{connect,{version,\"1.0\"}}">> 
-
-    Size is 25, so the CONNECT message is:
-
-    <<25:8, M/binary>> = 
-    <<25,40,58,99,111,110,110,101,99,116,32,123,58,118,101,
-      114,115,105,111,110,32,49,46,48,125,41>> 
-
-The server will respond to a CONNECT command with either an error or
-the encoded version of {"version":" "1.0"}
-
-    <<15:8, <<"{\"version\":\"1.0\"}">> = 
-    <<15,123,34,118,101,114,115,105,111,110,34,58,49,46,48,125>>
-
-The CLOSE command closes the socket, ending the session
-
-    M = <<"{close}">>
-
-     Size is 7 so the CLOSE message is:
-     <<7,123,99,108,111,115,101,125>>
-
-
-COMMAND messages are string versions of the tuple-messages, which 
-jc_bridge uses, without the self() parameter. For example
-
-    {self(), {put, Map, Key, Value}} becomes 
-    {put, Map, Key, Value}
-
-The return will be an encoded version of a JSON string. A client session 
-might look as follows:
-
-    client:send("{put, evs, \"1\", \"{\\\"value:\\\":true}\"}")
-    <<"{\"ok\":\"1\"}">>
-
-    client:send("{get, evs, \"1\"}"),
-    <<"{\"ok\":"{\\\"value\\\":true}\"}">>
-    
-    client:send("{put, evs, 1, \"{\\\"value:\\\":true}\"}")
-    <<"{\"ok\":1}">>
-
-    client:send("{get, evs, 1}"),
-    <<"{\"ok\":"{\\\"value\\\":true}\"}">>
-    
-
-
 ### Configuration
 * Application configuration is in sys.config which is heavily
   commented
@@ -252,8 +185,6 @@ might look as follows:
   numbers on jc_s operations
 * jc_analyzer
   * Analysis and indexing inititation of JSON query strings
-* jc_protocol
-  * Socket processing of messages and Erlang -> JSON
 * jc_psub: 
   * Pub / Sub of cache write and delete events
   * On-demand, ad-hoc topic events
