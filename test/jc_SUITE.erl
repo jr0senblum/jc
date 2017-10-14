@@ -202,8 +202,8 @@ meta_data_test(_Config) ->
     [{auto_index,{records,0},{bytes,_}},
      {key_to_value,{records,0},{bytes,_}},
      {max_ttl,{records,0},{bytes,_}},
-     {ps_client,{records,0},{bytes,_}},
-     {ps_sub,{records,0},{bytes,_}},
+     {ps_client,{records,1},{bytes,_}},
+     {ps_sub,{records,1},{bytes,_}},
      {schema,{records,10},{bytes,_}},
      {seq,{records,0},{bytes,_}},
      {stats,{records,2},{bytes,_}},
@@ -840,13 +840,13 @@ map_subscribe_test(_Config) ->
     jc_bridge ! {self(), {map_subscribe, bed, key, write}}, 
     timer:sleep(100),
     This = self(),
-    This = mnesia:dirty_first(ps_client),
+    true = lists:member(This, mnesia:dirty_all_keys(ps_client)),
     [{ps_sub, {map_sub, bed, key, write}, Set}] = 
 	mnesia:dirty_read(ps_sub, mnesia:dirty_first(ps_sub)),
     sets:is_element(self(), Set),
 
-    1 = jc_psub:client_count(),
-    2 = jc_psub:load(),
+    2 = jc_psub:client_count(),
+    4 = jc_psub:load(),
 
     jc_bridge ! {self(), {put, bed, key, 1}}, 
     jc_bridge ! {self(), {put, bed, 1, 1}}, 
@@ -872,11 +872,11 @@ map_subscribe_test(_Config) ->
     jc_psub ! {evict_deadbeats, 120000},
     timer:sleep(200),
 
-    '$end_of_table' = mnesia:dirty_first(ps_sub),
-    '$end_of_table' = mnesia:dirty_first(ps_client),
+    1 = length(mnesia:dirty_all_keys(ps_client)),
+    1 = length(mnesia:dirty_all_keys(ps_sub)),	
   
-    0 = jc_psub:load(),
-    0 = jc_psub:client_count(),
+    2 = jc_psub:load(),
+    1 = jc_psub:client_count(),
     flush(),
 
     jc:put(bed, otherkey, 1),
@@ -888,8 +888,9 @@ map_subscribe_test(_Config) ->
     jc_bridge ! {self(), {map_subscribe, bed, key, delete}}, 
     jc_bridge ! {self(), {map_subscribe, evs, any, any}}, 
     timer:sleep(600),
-    
-    First = mnesia:dirty_first(ps_sub),
+
+    Zeroth = mnesia:dirty_first(ps_sub),
+    First = mnesia:dirty_next(ps_sub, mnesia:dirty_first(ps_sub)),
     Second = mnesia:dirty_next(ps_sub, First),
 
 
@@ -910,7 +911,7 @@ map_subscribe_test(_Config) ->
     catch
         _:_ ->
             [{ps_sub, {map_sub, bed, key, delete}, Y2}] = 
-                mnesia:dirty_read(ps_sub, First),
+                mnesia:dirty_read(ps_sub, Zeroth),
             sets:is_element(self(), Y2)
     end,
 
