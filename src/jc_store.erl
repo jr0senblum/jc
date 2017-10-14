@@ -44,7 +44,7 @@
 	 put/5]).
 
 %% Meta-data API.
--export([up_nodes/0, stats/1]).
+-export([locus/2, up_nodes/0, stats/1]).
 
 %% Custom-field indexing API.
 -export([indexes/0, indexes/1, create_index/2, start_indexing/2, stop_indexing/2]).
@@ -66,6 +66,20 @@
 %% =============================================================================
 %% Meta data API
 %% =============================================================================
+
+
+%% -----------------------------------------------------------------------------
+%% Given a Key, hash it into an index into the list of supplied Nodes and return 
+%% the indexed node. Used to help avoid transactions by allowing a client to 
+%% locate a key-specific node for destructive (write, delete, etc.) operations. 
+%% It's faster to ask for a node and then utilize that node's jc_bridge or 
+%% Jcache API rather than using transactions. 
+%%
+-spec locus(key(), list(node())) -> node().
+
+locus(K, Nodes) ->
+    Bucket = erlang:phash2(K, length(Nodes)) + 1, 
+    lists:nth(Bucket, Nodes).
 
 
 %% -----------------------------------------------------------------------------

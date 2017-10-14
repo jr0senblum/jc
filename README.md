@@ -2,7 +2,7 @@ JC
 ====
 ## Erlang, Distributable, In-Memory Cache
 
-### Featuring: Pub/Sub, JSON-query, consistency support, and a simple, TCP interop. protocol.
+### Featuring: Pub/Sub, JSON-query, consistency support.
 
 
 [![Build Status](https://travis-ci.org/jr0senblum/jc.svg?branch=master)](https://travis-ci.org/jr0senblum/jc)
@@ -16,26 +16,30 @@ JC
     in other caching systems
   * Maps, Keys and Values can be any Erlang term
   * TTL is time-to-live in seconds
-* Consistency assist through sequence numbers: An alternative API
-    allows for a sequence-number parameter on the put/x, evict/x,
-    match/x and remove/x operations. Operations whose sequence
-    number is lower than the current, per-map max are disallowed 
-    thereby ensuring, for example, that stale puts do not 
-    overwrite newer ones due to the newer one beating the stale
-    ones to the cache.
-*  JSON query support
-   * Query by JSON: When Values are JSON, evict_match/2,
+* Consistency assist through Sequence Number Support: An alternative API allows
+  for a sequence-number parameter on the put/x, evict/x, match/x and remove/x
+  operations. Operations whose sequence number is lower than the current, per-map
+  max are disallowed thereby ensuring, for example, that stale puts do not
+  overwrite newer ones due to the newer one beating the stale ones to the cache.
+* Node of Responsibility: jc_store:locus/2 is used to help avoid the need for
+  transactions by allowing a client to locate a key-specific node for destructive
+  (write, delete, etc.) operations. The function takes a Key and a
+  list of nodes and returns a node to be used for destructive operations.
+  It's faster to ask for a node and then utilize that node's jc_bridge or
+  Jcache API rather than using transactions. 
+* JSON query support
+  * Query by JSON: When Values are JSON, evict_match/2,
     evict_all_match/1 and values_match/2 will search or evict
     keys whose JSON value, at a location specificed by a java-style, 
     dot-path string, equals the given value. That is,
     jc:values_match(bed, "id.type=3") would return all values, in the given
     map (bed), where that value was a JSON object, id, with a "type":3
     at its top-level.
-   * Ad-hoc, index support: In order to support faster
+  * Ad-hoc, index support: In order to support faster
     operations, (2-3 orders of magnitude), each map can have up to four,
     dot-path, strings configured (or added at run-time) for which jc will
     provide index support.
-   * Auto index recognition - Frequently used JSON querries will be
+  * Auto index recognition - Frequently used JSON querries will be
      automatically detected and indexing initiated.
 * User controlled eviction
   * Map-level TTL: A job runs at configured intervals and removes
@@ -156,7 +160,9 @@ Identical to the Create and Evict family of functions of the jc module
     `jc_bridge ! {Pid, {put, Map, Key, Value}}`
     
 * Additionally, 
-
+  {From, locus, Key}} -> node() Calls jc_store:locus/2 with the list of active
+  cache nodes.
+  
   {From, {node_topic_sub}} -> ok | {error, badarg}, 
   client will recieve:
    

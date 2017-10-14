@@ -9,6 +9,9 @@
 %%%
 %%% Since this server is the last thing started by the supervisor, it notifies
 %%% all other node's jc_psub that this node is ready to act as a cache node.
+%%%
+%%% Two help avoid the need for transactions, a handle_info message returns a
+%%%
 %%% @end
 %%% Created : 28 Oct 2014 by  <Jim Rosenblum>
 %%% ----------------------------------------------------------------------------
@@ -30,7 +33,10 @@
 -define(SERVER, ?MODULE).
 
 
--record(jc_bridge_state, {}).
+%% State is just a list of active nodes, used to enable fast response to the
+%% 'which' info_message - see jc_store:locus/2
+%%
+-record(jc_bridge_state, {nodes :: list(node())}).
 
 
 
@@ -76,22 +82,29 @@ init([]) ->
 	       [?MODULE, Nodes]),
 
     gen_server:abcast(Nodes, jc_psub, {jc_bridge_up, node()}),
-    jc_psub:topic_subscribe(self(), jc_node_events, any),
+    subscribe_and_monitor(),
 
     % Store the cach node names, cnt and subscribe to changes
-    put(cnt, length(UpNodes)),
-    put(nodes, lists:sort(UpNodes)),
     
     lager:info("~p: up.", [?MODULE]),
 
-    {ok, #jc_bridge_state{}}.
+    {ok, #jc_bridge_state{nodes = UpNodes}}.
 
 
 % Return the list of up cache nodes.
+%
 up_nodes(Nodes) ->
     [N || N <- Nodes, 
           is_pid(rpc:call(N, erlang, whereis, [jc_bridge], 1000))].
-    
+
+
+% Subscribe to jc_node_events and monitor jc_psub so that if it goes down,
+% jc_bridge can re-subscribe.
+%
+subscribe_and_monitor() ->
+  jc_psub:topic_subscribe(self(), jc_node_events, any),
+  _ = erlang:monitor(process, jc_psub).
+
 
 %% -----------------------------------------------------------------------------
 %% @private Handling call messages
@@ -121,17 +134,19 @@ handle_cast(Msg, State) ->
 %%
 -spec handle_info(any(), #jc_bridge_state{}) -> {noreply, #jc_bridge_state{}}.
 
-handle_info({_From, {jc_node_events, {_Type, _Node, Active, _C}}}, State) ->
-    put(cnt, length(Active)),
-    put(nodes, lists:sort(Active)),
-    lager:info("~p: node change. New actives: ~p.", [?MODULE, Active]),
-    {noreply, State};
+handle_info({_From, {jc_node_events, {_Type, _Node, Active, _C}}}, _State) ->
+    NewState = #jc_bridge_state{nodes = Active},
+    lager:info("~p: nodes changed. New actives: ~p.", [?MODULE, Active]),
+    {noreply, NewState};
 
-handle_info({From, {which, Key}}, State) ->
-    % Hash key to cache_node responsible for destructive operations
-    Cnt = get(cnt),
-    Nodes = get(nodes),
-    _Pid = spawn(fun() -> From ! get_server(Key, Cnt, Nodes) end)
+handle_info({'DOWN', _Ref, process, {jc_psub, _Node}, _Info}, State) ->
+    % Need to resubscribe to node up/down messages.
+    lager:info("~p: jc_psub went down. Resubscribing.", [?MODULE]),
+    subscribe_and_monitor(),
+    {noreply, State};
+       
+handle_info({From, {locus, Key}}, #jc_bridge_state{nodes=Nodes} = State) ->
+    _Pid = spawn(fun() -> From ! jc_store:locus(Key, Nodes) end),
     {noreply, State};
     
 handle_info({From, {map_subscribe, Map, Key, Ops}}, State) ->
@@ -181,8 +196,8 @@ handle_info({From, {get_max_ttls}}, State) ->
     {noreply, State};
 
 
-handle_info({From, {put, Map, Key, Value}} = Message, State) ->
-    _Pid = spawn(fun() -> From ! jc_s:put(Map, Key, Value) end),
+handle_info({From, {put, Map, Key, Value}}, State) ->
+    _Pid = spawn(fun() -> From ! jc:put(Map, Key, Value) end),
     {noreply, State};
 
 handle_info({From, {put_s, Map, Key, Value, Seq}}, State) ->
@@ -230,7 +245,7 @@ handle_info({From, {evict_map_since, Map, Secs}}, State) ->
     _Pid = spawn(fun() -> From ! jc:evict_map_since(Map, Secs) end),
     {noreply, State};
 
-handle_info({From, {evict, Map, Key}} = Message, State) ->
+handle_info({From, {evict, Map, Key}}, State) ->
     _Pid = spawn(fun() -> From ! jc:evict(Map, Key) end),
     {noreply, State};
     
@@ -360,13 +375,3 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
-
-
-%% -----------------------------------------------------------------------------
-%% @private Given a Key, the number of nodes and list of nodes, return the node
-%% responsible for the Key.
-%%
-
-get_server(K, Cnt, Nodes) ->
-    Bucket = erlang:phash2(K, Cnt) + 1, 
-    lists:nth(Bucket, Nodes).
