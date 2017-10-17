@@ -2,7 +2,7 @@ JC
 ====
 ## Erlang, Distributable, In-Memory Cache
 
-### Featuring: Pub/Sub, JSON-query, consistency support.
+### Featuring: Pub/Sub, JSON-query, and mechanisms to support consistency without transactoins.
 
 
 [![Build Status](https://travis-ci.org/jr0senblum/jc.svg?branch=master)](https://travis-ci.org/jr0senblum/jc)
@@ -16,17 +16,32 @@ JC
     in other caching systems
   * Maps, Keys and Values can be any Erlang term
   * TTL is time-to-live in seconds
-* Consistency assist through Sequence Number Support: An alternative API allows
-  for a sequence-number parameter on the put/x, evict/x, match/x and remove/x
-  operations. Operations whose sequence number is lower than the current, per-map
-  max are disallowed thereby ensuring, for example, that stale puts do not
-  overwrite newer ones due to the newer one beating the stale ones to the cache.
-* Node of Responsibility: jc_store:locus/2 is used to help avoid the need for
-  transactions by allowing a client to locate a key-specific node for destructive
-  (write, delete, etc.) operations. The function takes a Key and a
-  list of nodes and returns a node to be used for destructive operations.
-  It's faster to ask for a node and then utilize that node's jc_bridge or
-  Jcache API rather than using transactions. 
+* Consistency assist
+	* Client-Side Sequence Number: An alternative API allows for a sequence-number
+    parameter on the put/x, evict/x, match/x and remove/x operations. Operations
+    whose sequence number is lower than the current, per-map max are disallowed
+    thereby ensuring, for example, that an old delete that shows up after a newer update
+    doesn't inappropriately evict the newer update.
+  * Node of Responsibility: A key-specific node can be identified for destructive
+    operations (put, evict, etc.) thereby preserving eventual consistency without transactions. 
+      * jc_store:locus/2 takes a Key and a list of nodes and returns the node of 
+    responsibility.
+      * jc\_bridge accepts a message {From, {locus, Key}} and returns the node of
+      responsibility. Because jc\_bridge knows which nodes are available, the client
+      is relieved from keeping track of up-nodes, which is necessary to
+      caclulate the correct node of responsiblility. For example:
+  
+ ~~~~ Erlang
+    {jc_bridge, Any_Cache_Node} ! {self(), {locus, Key}},
+    NOR = receive
+        {error, _} -> error
+              Node -> Node
+    after
+        1000 -> error
+    end,
+    {jc_bridge, NOR} ! {self, {put, benchtest, 10203, "{\"Key\":\"Value\"}
+ ~~~~
+    
 * JSON query support
   * Query by JSON: When Values are JSON, evict_match/2,
     evict_all_match/1 and values_match/2 will search or evict
@@ -160,8 +175,8 @@ Identical to the Create and Evict family of functions of the jc module
     `jc_bridge ! {Pid, {put, Map, Key, Value}}`
     
 * Additionally, 
-  {From, locus, Key}} -> node() Calls jc_store:locus/2 with the list of active
-  cache nodes.
+  `{From, locus, Key}} -> node()` Calls jc_store:locus/2 with the list of active
+  cache nodes and returns the node of record.
   
   {From, {node_topic_sub}} -> ok | {error, badarg}, 
   client will recieve:
@@ -172,7 +187,7 @@ Identical to the Create and Evict family of functions of the jc module
 
     `{jc_node_events, {nodeup, UppedNode, [ActiveNodes],[ConfiguredNodes]}}`
 
-  {From, {node_topic_unsub}} -> ok.
+  `{From, {node_topic_unsub}} -> ok`.
 
 
 ### Configuration

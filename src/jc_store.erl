@@ -69,10 +69,10 @@
 
 
 %% -----------------------------------------------------------------------------
-%% Given a Key, hash it into an index into the list of supplied Nodes and return 
-%% the indexed node. Used to help avoid transactions by allowing a client to 
-%% locate a key-specific node for destructive (write, delete, etc.) operations. 
-%% It's faster to ask for a node and then utilize that node's jc_bridge or 
+%% Given a Key, hash it producing an index into the list of supplied Nodes and 
+%% return the indexed node. Used to help avoid transactions by allowing a client 
+%% to  locate a key-specific node for destructive (write, delete, etc.) operations. 
+%% It is faster to ask for a node and then utilize that node's jc_bridge or 
 %% Jcache API rather than using transactions. 
 %%
 -spec locus(key(), list(node())) -> node().
