@@ -18,7 +18,6 @@
                   stdlib, 
                   syntax_tools,
                   compiler,
-                  ranch,
                   lager,
                   jsone,
                   jwalk
