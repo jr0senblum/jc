@@ -145,7 +145,7 @@ cache_nodes() ->
     Configured = application:get_env(jc, cache_nodes,[]),
     MnesiaUp = jc_store:up_nodes(),
     Running = [N || N <- MnesiaUp, 
-		   undefined /= rpc:call(N, erlang, whereis, [jc_bridge], 1000)],
+		   is_pid(rpc:call(N, erlang, whereis, [jc_bridge], 1000))],
     {{active, lists:sort(Running)}, {configured, lists:sort(Configured)}}.
 
 
