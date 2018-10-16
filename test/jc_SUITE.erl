@@ -388,9 +388,9 @@ put_all_test(_Config)->
 
     {ok, 100} = bridge({put_all, bed, KVs, 2}),
     {ok, TestVs} = bridge({values, bed}),
-    lists:sort(Vs) == lists:sort(TestVs),
+    true = (lists:sort(Vs) == lists:sort(TestVs)),
     {ok, TestKs} = bridge({key_set, bed}),
-    lists:sort(Ks) == lists:sort(TestKs),
+    true = (lists:sort(Ks) == lists:sort(TestKs)),
 
     timer:sleep(2100),
     {ok, {[], M}} = bridge({get_all, bed, Ks}),
@@ -754,7 +754,8 @@ remove_items_test(_config) ->
     {ok,3} = jc:put_all(bed, [{1, one},{2, two},{3, three}]),
     {ok,[{1,one}]} = bridge({remove_items, bed, [1, 22]}),
     {ok, []} = bridge({remove_items, bed, [1, 22]}),
-    {ok, [2,3]} = jc:key_set(bed),
+    {ok, Result} = jc:key_set(bed),
+    [2,3] = lists:sort(Result),
     {ok,[{3, three}, {2, two}]} = bridge({remove_items, bed, [2, 3, 3, 4]}),
     {records, 0} = jc:map_size(bed), 
     jc:flush(),
@@ -762,7 +763,8 @@ remove_items_test(_config) ->
     {ok,3} = jc_s:put_all(bed, [{1, one},{2, two},{3, three}], 10),
     {ok,[{1,one}]} = bridge({remove_items_s, bed, [1, 22], 11}),
     {ok, []} = bridge({remove_items_s, bed, [1, 22], 12}),
-    {ok, [2,3]} = jc:key_set(bed),
+    {ok, Result} = jc:key_set(bed),
+    true = ([2,3] == lists:sort(Result)),
     {error, out_of_seq} = bridge({remove_items_s, bed, [2, 3, 3, 4], 1}),
     {ok,[{3, three}, {2, two}]} = bridge({remove_items_s, bed, [2, 3, 3, 4], 111}),
     {records, 0} = jc:map_size(bed).
