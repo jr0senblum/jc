@@ -1,8 +1,8 @@
 
 language: erlang
 otp_release:
-   - 17.0
-   - 18.0
-   - 19.0
+   - 19.0 
+   - 20.0
+   - 21.0
 
 script: "sh -ex .travis_build.sh" 
