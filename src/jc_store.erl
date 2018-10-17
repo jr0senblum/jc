@@ -130,12 +130,10 @@ maps() ->
 -spec clear(map_name()) -> ok.
 
 clear(Map) ->
-    F = fun() ->
-		Items = mnesia:index_read(key_to_value, Map, #key_to_value.map),
-		[mnesia:delete_object(Rec) || Rec <- Items],
-		mnesia:delete({seq, Map})
-	end,
-     mnesia:sync_dirty(F),
+
+    Items = mnesia:index_read(key_to_value, Map, #key_to_value.map),
+    [mnesia:delete_object(Rec) || Rec <- Items],
+    mnesia:delete({seq, Map}),
     ok.
 
 
