@@ -32,3 +32,4 @@ test/*.html
 test/*.css
 test/*.js
 variables-ct@*
+test/rebar.lock
