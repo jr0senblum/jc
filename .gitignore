@@ -33,3 +33,5 @@ test/*.css
 test/*.js
 variables-ct@*
 test/rebar.lock
+test/ct_run.ct*
+ct_log_cache
