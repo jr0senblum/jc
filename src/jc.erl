@@ -222,7 +222,8 @@ put_all(_m, _K, _T) ->
 
 clear(Map) ->
     lager:debug("~p: clear map ~p.", [?MODULE, Map]),
-    jc_store:clear(Map),
+    F = fun() -> jc_store:clear(Map) end,
+    trans_execute(F),
     ok.
 
 
