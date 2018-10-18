@@ -287,7 +287,7 @@ Given this ClusterId, we have the following strategy:
 3. _Nodeup_ Whenever a Node appears, an arbitary Node ensures that any Nodes that report
     a different ClusterId (different than the arbitrary Node's ClusterId) are killed to be
     restarted by the hearbeat application. If any Nodes required restarting, the entire 
-    cache is flushed.
+    cache is flushed or not per policy in config.sys.
 
 ### Build Instructions
 * Ensure that Erlang 17 or higher is installed

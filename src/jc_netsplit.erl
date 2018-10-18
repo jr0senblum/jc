@@ -28,8 +28,8 @@
 %%% node will report different ClusterId - bad. 
 %%% 
 %%% For any bad outcome, all nodes having the 'different' ClusterId are killed
-%%% to be restarted by the heart process, and a survivor does a flush.
-%%%
+%%% to be restarted by the heart process, and a survivor may do a flush per
+%%% policy in configy.sys
 %%%
 %%% @end
 %%% Created : 18 May 2016 by Jim Rosenblum <jrosenblum@Jims-MacBook-Pro.local>
@@ -56,9 +56,10 @@
 -define(LOCK, {?MODULE, self()}).
 
 
-% State: list of configured nodes.
+% State: list of configured nodes, and flush policy on join after net split.
 -record(jc_ns_state, 
-        {nodes = [] :: [Configured::node()]}).
+        {nodes = [] :: [Configured::node()],
+         should_flush = true :: boolean()}).
 
 
 
@@ -90,10 +91,12 @@ start_link() ->
 init([]) ->
     ok = net_kernel:monitor_nodes(true),
     {ok, Configured} = application:get_env(jc, cache_nodes),
+    {ok, ShouldFlush} = application:get_env(jc, should_flush),
     
     lager:info("~p: up and watching events for ~p.", [?SERVER, Configured]),
 
-    {ok, #jc_ns_state{nodes = lists:sort(Configured)}}.
+    {ok, #jc_ns_state{nodes = lists:sort(Configured), 
+                      should_flush = ShouldFlush}}.
 
 
 %% -----------------------------------------------------------------------------
@@ -121,8 +124,8 @@ handle_cast(Msg, State) ->
 %%
 -spec handle_info(any(), #{}) -> {noreply, #{}}.
 
-handle_info({nodeup, Upped}, #jc_ns_state{nodes = Ns} = State) ->
-    check_cluster_health(Upped, Ns),
+handle_info({nodeup, Upped}, #jc_ns_state{nodes = Ns, should_flush = Sf} = State) ->
+    check_cluster_health(Upped, Ns, Sf),
     {noreply, State};
     
 handle_info({nodedown, Downed}, State) ->         
@@ -191,23 +194,24 @@ do_change(Downed) ->
 % all nodes will report the same ClusterId. If not, then 'outliers' should 
 % kill themselves and let the hearbeat process restart them.
 %
-check_cluster_health(Upped, Nodes) ->
+check_cluster_health(Upped, Nodes, ShouldFlush) ->
     case is_relevant(Upped, Nodes) of
         false ->
             ok;
         true ->
-            check(Upped, Nodes, jc_cluster:get_cluster_id()),
+            check(Upped, Nodes, jc_cluster:get_cluster_id(), ShouldFlush),
             ok
     end.
 
 
 
 
-% Ask each node to check that it has the same ClusterId, if not flush. 
-% Any node that has a different ClusterId will kill itself and be restarted
-% by the heartbeat process.
+% Ask each node to check that it has the same ClusterId. Any  node that has
+% a different ClusterId will kill itself and be restarted by the heartbeat
+% process. If any nodes were killed, flush the entire cache per policy in 
+% sys.config
 %
-check(Upped, Nodes, ClusterId) ->
+check(Upped, Nodes, ClusterId, ShouldFlush) ->
     {Res, _Bad} = 
         global:trans(?LOCK,
                      fun() -> 
@@ -223,9 +227,13 @@ check(Upped, Nodes, ClusterId) ->
                      infinity),
 
     case lists:member(bad, Res) of
-        true ->
-            lager:notice("~p: cluster repaired, flushing.", [?SERVER]),
+        true when ShouldFlush ->
+            lager:notice("~p: cluster repaired, flush per policy.", 
+                         [?SERVER]),
             jc:flush();
+        true when not ShouldFlush ->
+            lager:notice("~p: cluster repaired, not flushing per policy.", 
+                         [?SERVER]);
         false ->
             lager:notice("~p: cluster showed no signs of inconsistency.", 
                          [?SERVER])
