@@ -30,6 +30,7 @@
 		  jc_bridge,
 		  jc_cluster,
 		  jc_eviction_manager,
+                  jc_netsplit,
 		  jc_protocol,
 		  jc_psub,
 		  jc_sequence,
