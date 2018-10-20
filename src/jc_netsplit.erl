@@ -28,8 +28,8 @@
 %%% node will report different ClusterId - bad. 
 %%% 
 %%% For any bad outcome, all nodes having the 'different' ClusterId are killed
-%%% to be restarted by the heart process, and a survivor may do a flush per
-%%% policy in configy.sys
+%%% to be restarted by the heartbeat process, and a survivor may do a flush per
+%%% policy in configy.sys.
 %%%
 %%% @end
 %%% Created : 18 May 2016 by Jim Rosenblum <jrosenblum@Jims-MacBook-Pro.local>
@@ -91,7 +91,7 @@ start_link() ->
 init([]) ->
     ok = net_kernel:monitor_nodes(true),
     {ok, Configured} = application:get_env(jc, cache_nodes),
-    {ok, ShouldFlush} = application:get_env(jc, should_flush),
+    ShouldFlush = application:get_env(jc, should_flush, false),
     
     lager:info("~p: up and watching events for ~p.", [?SERVER, Configured]),
 
@@ -228,11 +228,11 @@ check(Upped, Nodes, ClusterId, ShouldFlush) ->
 
     case lists:member(bad, Res) of
         true when ShouldFlush ->
-            lager:notice("~p: cluster repaired, flush per policy.", 
+            lager:notice("~p: cluster repaired, flushing cache per policy.", 
                          [?SERVER]),
             jc:flush();
         true when not ShouldFlush ->
-            lager:notice("~p: cluster repaired, not flushing per policy.", 
+            lager:notice("~p: cluster repaired, not flushing cache per policy.", 
                          [?SERVER]);
         false ->
             lager:notice("~p: cluster showed no signs of inconsistency.", 

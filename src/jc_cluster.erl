@@ -113,7 +113,7 @@ get_cluster_id() ->
     end.
 
 
-% kill this node...
+% kill the application, it will be restarted...
 %
 kamakazee() ->
     lager:notice("~p: ~p seppuku.", [?MODULE, node()]),
@@ -182,15 +182,18 @@ dynamic_db_init([]) ->
 			 {type, ordered_set},
 			 {index, [map, key, ref, create_tm]}
 			]),
+
     mnesia:create_table(seq,
 			[{attributes, record_info(fields, seq)},
 			 {type, set}
 			]),
+
     mnesia:create_table(to_index,
 			[{attributes, record_info(fields, to_index)},
 			 {type, set},
 			 {index, [map_name, position]}
 			]),
+
     mnesia:create_table(auto_index,
 			[{attributes, record_info(fields, auto_index)},
 			 {type, set}
@@ -198,17 +201,21 @@ dynamic_db_init([]) ->
     mnesia:create_table(ttl,
 			[{attributes, record_info(fields, ttl)}
 			]),
+
     mnesia:create_table(max_ttl,
 			[{attributes, record_info(fields, max_ttl)},
 			 {type, set}
 			]),
+
     mnesia:create_table(stats,
 			[{attributes, record_info(fields, stats)}
 			]),
+
     mnesia:create_table(ps_sub,
 			[{attributes, record_info(fields, ps_sub)},
 			 {local_content, true}
 			]),
+
     mnesia:create_table(ps_client,
 			[{attributes, record_info(fields, ps_client)},
 			 {local_content, true}
