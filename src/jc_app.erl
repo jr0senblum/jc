@@ -30,11 +30,20 @@
 start(_StartType, _StartArgs) ->
     ok = jc_cluster:init(),
     Port = application:get_env(jc, protocol_port, 5555),
-    {ok, _} = ranch:start_listener(jc_proto, 
-				   100,
-				   ranch_tcp, 
-				   [{port, Port}], 
-				   jc_protocol, [Port]),
+
+    Dispatch = cowboy_router:compile([
+		{'_', [
+                       {"/maps", jc_toppage_h, [maps]},
+                       {"/maps/:map", jc_toppage_h, [map]},
+                       {"/", jc_toppage_h, [empty]}
+		]}
+	]),
+    
+	{ok, _} = cowboy:start_clear(http, [{port, 8080}], 
+                                     #{env => #{dispatch => Dispatch}
+	}),
+
+
     lager:info("tcp, protocol listener is up and listening on port: ~p", [Port]), 
     case jc_sup:start_link() of
 	{ok, Pid} ->
