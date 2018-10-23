@@ -33,9 +33,8 @@ start(_StartType, _StartArgs) ->
 
     Dispatch = cowboy_router:compile([
 		{'_', [
-                       {"/maps", jc_toppage_h, [maps]},
-                       {"/maps/:map", jc_toppage_h, [map]},
-                       {"/", jc_toppage_h, [empty]}
+                       {"/maps", cb_collections_h, [maps]},
+                       {"/maps/:map", cb_collections_h, [map]}
 		]}
 	]),
     

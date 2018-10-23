@@ -23,7 +23,9 @@
 
       %% Specific modules to include in cover.
       %% Mods = [atom()]
-      {incl_mods, [jc,
+      {incl_mods, [
+                  cb_collections_h,
+                  jc,
       		  jc_analyzer,
       		  jc_s,
       		  jc_app,

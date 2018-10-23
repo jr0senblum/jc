@@ -25,6 +25,7 @@
   {included_applications, [mnesia]},
   {env,[]},
   {modules, [
+             cb_collections_h,
              jc,
              jc_analyzer,
              jc_app,
