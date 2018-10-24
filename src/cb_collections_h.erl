@@ -1,8 +1,8 @@
 %%% ----------------------------------------------------------------------------
 %%% @author Jim Rosenblum
 %%% @copyright (C) 2018-2019, Jim Rosenblum
-%%% @doc Module that manages RESTful, collection interactions (Maps and Map).
-%%% This is a Cowboy handler handling GET, POST, OPTIONS, DELETE, and HEAD
+%%% @doc Module that manages RESTful interactions for Maps and Map collections).
+%%% This is a Cowboy handler handling DELETE, GET, HEAD, and OPTIONS
 %%% verbs and provides a JSON response.
 %%%
 %%% @version {@version}
@@ -57,7 +57,7 @@ init(Req, Opts) ->
                                            Method::nonempty_list().
 
 allowed_methods(Req, State) ->
-    Methods = [<<"GET">>, <<"POST">>, <<"OPTIONS">>, <<"DELETE">>, <<"HEAD">>],
+    Methods = [<<"DELETE">>, <<"GET">>, <<"HEAD">>, <<"OPTIONS">>], 
     {Methods, Req, State}.
 
 
@@ -77,7 +77,7 @@ content_types_provided(Req, State) ->
 
 
 %% -----------------------------------------------------------------------------
-%% Delete the resource collection - a map.
+%% DELETE the resource collection - a map.
 %%
 -spec delete_resource(Req, State) -> {Result, Req, State}
                                      when Result::boolean(),
@@ -93,6 +93,15 @@ delete_resource(Req, #cb_coll_state{op = Op} = State) when Op == maps ->
     ok = jc:flush(),
     {true, Req, State}.
 
+
+%% -----------------------------------------------------------------------------
+%% Returns true when the resources is completely DELETEd.
+%%
+-spec delete_completed(Req, State) -> {Result, Req, State}
+                                     when Result::boolean(),
+                                          Req::cowboy_req:req(),
+                                          State::#cb_coll_state{}.
+
 delete_completed(Req, #cb_coll_state{op = Op} = State) when Op == map ->                                          
     MapName = cowboy_req:binding(map, Req),
     {records, Size} = jc:map_size(MapName),
@@ -104,7 +113,7 @@ delete_completed(Req, #cb_coll_state{op = Op} = State) when Op == maps ->
 
 
 %% -----------------------------------------------------------------------------
-%%
+%% Returns true when the resources exists, else flase.
 -spec resource_exists (Req, State) -> {boolean(), Req, State}
                                       when Req::cowboy_req:req(),
                                            State::#cb_coll_state{}.
@@ -148,8 +157,7 @@ map_collection_body(#{method := Verb} = Req) ->
     case Verb of
         <<"GET">> ->
             {ok, KeyList} = jc:key_set(MapName),
-            SHPP = get_URI(Req),
-            map_to_json(SHPP, MapName, KeyList);
+            map_to_json(Req, MapName, KeyList);
         <<"HEAD">> ->
             <<>>
     end.
@@ -160,57 +168,61 @@ get_or_head_maps(#{method := Verb} = Req) ->
     case Verb of
         <<"GET">> ->
             {maps, MapList} = jc:maps(),
-            SHPP = get_URI(Req),
-            maps_to_json(SHPP, MapList);
+            maps_to_json(Req, MapList);
         <<"HEAD">> ->
             <<>>
     end.
 
 
 % ------------------------------------------------------------------------------
-% Construct the URI (i.e., "HTTP://Host:Port/Path) as binary string.
-%
 get_URI(Req) ->
     Scheme = cowboy_req:scheme(Req),
     Host = cowboy_req:host(Req),
     Port = list_to_binary(integer_to_list(cowboy_req:port(Req))),
     Path = cowboy_req:path(Req),
-    [Scheme, <<"://">>, Host, <<":">>, Port, Path, <<"/">>].
+    {[Scheme, <<"://">>, Host, <<":">>, Port],Path}.
 
 
 % ------------------------------------------------------------------------------
 % Construct the JSON represention a mapa collection.
 %
-map_to_json(Url, MapName, KeyList) ->
+map_to_json(Req, MapName, KeyList) ->
+    {SHP, Path} = get_URI(Req),
+    Url = [SHP, Path],
     ListOfMaps = 
         lists:foldl(fun(Key, Acc) ->
                             [[<<"{\"key\":\"">>,Key,<<"\",">>,
-                              <<"\"links\": [{\"rel\":\"self\",\"method\":\"GET\",">>,
-                              <<"\"href\":\"">>, Url, Key,
+                              <<"\"links\": [{\"rel\":\"self\",">>,
+                              <<"\"href\":\"">>, Url, <<"/">>,Key,
                               <<"\"}]}">>]|Acc]
                     end,
                     [],
                     KeyList),
     Separated = lists:join(<<",">>,ListOfMaps),
-    [<<"{\"map\":\"">>, MapName, <<"\", \"keys\": [">>, Separated, <<"], \"links\": [{\"rel\":\"maps\",\"method\":\"GET\",\"href\":\"">>,Url,<<"\"}]}">>].
+    [<<"{\"map\":\"">>, MapName, <<"\", \"keys\": [">>, Separated, <<"],">>,
+     <<"\"links\": [{\"rel\":\"maps\",\"href\":\"">>,SHP,<<"/maps\"}]}">>].
 
 
 % ------------------------------------------------------------------------------
 % Construct the JSON represention the maps collection.
 % {maps: [{method:GET,URL:http://host:port/path/mapname},...,{}]}
 %
-maps_to_json(Url, MapList) ->
+maps_to_json(Req, MapList) ->
+    {SHP, Path} = get_URI(Req),
+    Url = [SHP, Path],
+
     ListOfMaps = 
         lists:foldl(fun(MapName, Acc) ->
                             [[<<"{\"map\":\"">>,MapName,<<"\",">>,
-                              <<"\"links\": [{\"rel\":\"self\",\"method\":\"GET\",">>,
-                              <<"\"href\":\"">>, Url, MapName, 
+                              <<"\"links\": [{\"rel\":\"self\",">>,
+                              <<"\"href\":\"">>, Url, <<"/">>, MapName, 
                               <<"\"}]}">>]|Acc]
                     end,
                     [],
                     MapList),
     Separated = lists:join(<<",">>,ListOfMaps),
-    [<<"{\"maps\":">>, <<"[">>, Separated, <<"], \"links\": [{\"rel\":\"self\",\"method\":\"DELETE\",\"href\":\"">>,Url,<<"\"}]}">>].
+    [<<"{\"maps\":">>, <<"[">>, Separated, <<"],">>,
+     <<" \"links\": [{\"rel\":\"self\",\"href\":\"">>,Url,<<"\"}]}">>].
     
 
 
