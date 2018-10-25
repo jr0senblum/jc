@@ -29,21 +29,8 @@
 
 start(_StartType, _StartArgs) ->
     ok = jc_cluster:init(),
-    Port = application:get_env(jc, protocol_port, 5555),
-
-    Dispatch = cowboy_router:compile([
-		{'_', [
-                       {"/maps", cb_collections_h, [maps]},
-                       {"/maps/:map", cb_collections_h, [map]}
-		]}
-	]),
-    
-	{ok, _} = cowboy:start_clear(http, [{port, 8080}], 
-                                     #{env => #{dispatch => Dispatch}
-	}),
-
-
-    lager:info("tcp, protocol listener is up and listening on port: ~p", [Port]), 
+    maybe_start_REST_service(application:get_env(jc, rest_server, false)),
+ 
     case jc_sup:start_link() of
 	{ok, Pid} ->
 	    {ok, Pid};
@@ -59,3 +46,25 @@ start(_StartType, _StartArgs) ->
 
 stop(_State) ->
     ok.
+
+
+maybe_start_REST_service(false) ->
+    ok;
+maybe_start_REST_service(true) ->
+    RestIP = application:get_env(jc, rest_server_ip, "127.0.0.1"),
+    RestPort = application:get_env(jc, rest_server_port, 8080),
+    RestRoot = application:get_env(jc, rest_server_root, "/"),
+
+    Dispatch = cowboy_router:compile([
+                                      {RestIP, [
+                                                {RestRoot ++ "maps", cb_collections_h, [maps]},
+                                                {RestRoot ++ "/maps/:map", cb_collections_h, [map]}
+                                            ]}
+                                     ]),
+
+    {ok, _} = cowboy:start_clear(http, [{port, RestPort}], 
+                                 #{env => #{dispatch => Dispatch}
+                                  }),
+
+    lager:info("~p: RESTFUL http server is up and listening on host: ~p, port: ~p, path: ~p.",
+               [?MODULE, RestIP, RestPort, RestRoot]).

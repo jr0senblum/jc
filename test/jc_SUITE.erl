@@ -40,7 +40,7 @@
 -export([cluster_test/1]).
 -export([auto_analyzer_test/1]).
 
-
+-export([rest_maps_test/1]).
 
 % So we can test that all erlang types are valid keys, values and maps
 -record(rec, {value}).
@@ -50,7 +50,8 @@
 
 
 all() ->
-    [ sysconfig_test,auto_analyzer_test,
+    [rest_maps_test,
+     sysconfig_test,auto_analyzer_test,
      meta_data_test, 
      maps_test, map_size_test,
      put_simple_test, put_seq_test, put_eviction_test, put_all_test,
@@ -62,6 +63,7 @@ all() ->
      map_subscribe_test, topic_subscribe_test,
      cluster_test,seq_test
 
+
 ].
 
 init_per_suite(Config) ->
@@ -72,6 +74,7 @@ init_per_suite(Config) ->
 					{bed, "menu.2.id.'2'"},
 					{cow, "cow.2.id.'2'"}]),
     application:set_env(jc,  analyze_freq, {5, 5}),
+    application:set_env(jc, rest_server, true),
 
     application:ensure_all_started(jc),
     lager:set_loglevel(lager_console_backend, error),
@@ -88,7 +91,8 @@ end_per_testcase(_, Config) ->
     Config.
 
 end_per_suite(Config) ->
-    jc:stop(),
+%    jc:stop(),
+%    cowboy:stop(),
     Config.
 
 
@@ -952,7 +956,6 @@ topic_subscribe_test(_Config)->
 % stopping jc or killing the node should cause a node_down
 cluster_test(_Config) ->
     jc:stop(),
-    application:stop(ranch),
     mnesia:stop(),
     erlang:open_port({spawn, "erl -name jc2@127.0.0.1 -config ../../lib/jc/test/app.config -eval 'application:ensure_all_started(jc)' -pa ../../lib/*/ebin"},[out]),
     timer:sleep(1000),
@@ -1018,6 +1021,15 @@ cluster_test(_Config) ->
     rpc:call('jc3@127.0.0.1', jc, stop, []),
     collect_error = collect().
 
+
+rest_maps_test(_Config) ->
+    _ = [jc:put(<<"map1">>,list_to_binary(integer_to_list(I)),1) || I <- lists:seq(1,5)],
+    _ = [jc:put(<<"map2">>,list_to_binary(integer_to_list(I)),1) || I <- lists:seq(1,5)],
+    _ = [jc:put(<<"map3">>,list_to_binary(integer_to_list(I)),1) || I <- lists:seq(1,5)],
+    {ok,{{"HTTP/1.1",200,"OK"},
+     [_date, _server, _content_length, {"content-type","application/json"}],
+         "{\"maps\":[{\"map\":\"map3\",\"links\": [{\"rel\":\"self\",\"href\":\"http://127.0.0.1:8080/maps/map3\"}]},{\"map\":\"map2\",\"links\": [{\"rel\":\"self\",\"href\":\"http://127.0.0.1:8080/maps/map2\"}]},{\"map\":\"map1\",\"links\": [{\"rel\":\"self\",\"href\":\"http://127.0.0.1:8080/maps/map1\"}]}], \"links\": [{\"rel\":\"self\",\"href\":\"http://127.0.0.1:8080/maps\"}]}"}} = httpc:request(get, {"http://127.0.0.1:8080/maps", []}, [], []).
+    
 
 
 

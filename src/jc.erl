@@ -72,6 +72,7 @@
 stop()->
     application:stop(jc),
     application:stop(mnesia),    
+    application:stop(cowboy),
     application:stop(ranch),
     application:stop(lager),    
     ok.
