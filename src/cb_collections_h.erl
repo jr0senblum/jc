@@ -200,7 +200,8 @@ map_to_json(Req, MapName, KeyList) ->
                     KeyList),
     Separated = lists:join(<<",">>,ListOfMaps),
     [<<"{\"map\":\"">>, MapName, <<"\", \"keys\": [">>, Separated, <<"],">>,
-     <<"\"links\": [{\"rel\":\"maps\",\"href\":\"">>,SHP,<<"/maps\"}]}">>].
+     <<"\"links\": [{\"rel\":\"self\",\"href\":\"">>,Url,<<"\"},">>,
+     <<"{\"rel\":\"maps\",\"href\":\"">>,SHP,<<"/maps\"}]}">>].
 
 
 % ------------------------------------------------------------------------------

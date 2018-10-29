@@ -1026,12 +1026,91 @@ rest_maps_test(_Config) ->
     _ = [jc:put(<<"map1">>,list_to_binary(integer_to_list(I)),1) || I <- lists:seq(1,5)],
     _ = [jc:put(<<"map2">>,list_to_binary(integer_to_list(I)),1) || I <- lists:seq(1,5)],
     _ = [jc:put(<<"map3">>,list_to_binary(integer_to_list(I)),1) || I <- lists:seq(1,5)],
-    {ok,{{"HTTP/1.1",200,"OK"},
-     [_date, _server, _content_length, {"content-type","application/json"}],
-         "{\"maps\":[{\"map\":\"map3\",\"links\": [{\"rel\":\"self\",\"href\":\"http://127.0.0.1:8080/maps/map3\"}]},{\"map\":\"map2\",\"links\": [{\"rel\":\"self\",\"href\":\"http://127.0.0.1:8080/maps/map2\"}]},{\"map\":\"map1\",\"links\": [{\"rel\":\"self\",\"href\":\"http://127.0.0.1:8080/maps/map1\"}]}], \"links\": [{\"rel\":\"self\",\"href\":\"http://127.0.0.1:8080/maps\"}]}"}} = httpc:request(get, {"http://127.0.0.1:8080/maps", []}, [], []).
+
+    % Alowable methods on Map and Maps collections are Delete, Get, Head, and Options
+    {ok,{{"HTTP/1.1",405,"Method Not Allowed"},
+         [_date, _server, 
+          {"allow","DELETE, GET, HEAD, OPTIONS"},
+          {"content-length","0"}],[]}} = httpc:request(put, {"http://127.0.0.1:8080/maps", []}, [], []),
+
+    % Disalow other methods
+    {ok,{{"HTTP/1.1",405,"Method Not Allowed"},
+         [_, _, 
+          {"allow","DELETE, GET, HEAD, OPTIONS"},
+          {"content-length","0"}],[]}} = httpc:request(put, {"http://127.0.0.1:8080/maps/map1", []}, [], []),
+
+    % Disalow other content types
+    {ok,{{"HTTP/1.1",406,"Not Acceptable"},
+         [_, _, _],[]}} = httpc:request(get, {"http://127.0.0.1:8080/maps", [{"accept","text/html"}]}, [], []),
+
+    % Head works - 200 and 404 - on Map and Maps collectin
+    {ok,{{"HTTP/1.1",200,"OK"}, 
+         [_, _, {"content-length","0"}, {"content-type","application/json"}],
+         []}} = httpc:request(head, {"http://127.0.0.1:8080/maps", []}, [], []),
+
+    {ok,{{"HTTP/1.1",200,"OK"}, 
+         [_, _, {"content-length","0"}, {"content-type","application/json"}],
+         []}} = httpc:request(head, {"http://127.0.0.1:8080/maps/map1", []}, [], []),
     
+    {ok,{{"HTTP/1.1",404,"Not Found"},
+        [_, _, {"content-length","0"}, {"content-type","application/json"}],
+        []}} = httpc:request(head, {"http://127.0.0.1:8080/maps/map4", []}, [], []),
 
+    % Get works on Maps collection, should return 3 maps
+    {ok,{{"HTTP/1.1",200,"OK"}, 
+         [_, _, _, {"content-type","application/json"}],
+         MapsJson}} = httpc:request(get, {"http://127.0.0.1:8080/maps", []}, [], []),
 
+    MapsStruct = jsone:decode(list_to_binary(MapsJson)),
+
+    3 = length(jwalk:get({<<"maps">>},MapsStruct)),
+    [<<"http://127.0.0.1:8080/maps/map3">>] = jwalk:get({<<"maps">>, 1, <<"links">>,<<"href">>}, MapsStruct),
+    [<<"http://127.0.0.1:8080/maps/map1">>] = jwalk:get({<<"maps">>, 3, <<"links">>,<<"href">>}, MapsStruct),
+    [Map2] = [<<"http://127.0.0.1:8080/maps/map2">>] = jwalk:get({<<"maps">>, 2, <<"links">>,<<"href">>}, MapsStruct),
+
+    % Get works on Map collection. Should have 5 items.
+    {ok,{{"HTTP/1.1",200,"OK"},
+         [_, _, _, _],
+         MapJson}} = httpc:request(get, {binary_to_list(Map2), []}, [], []),
+
+    MapStruct = jsone:decode(list_to_binary(MapJson)),
+
+    5 = length(jwalk:get({<<"keys">>},MapStruct)),
+    [<<"http://127.0.0.1:8080/maps/map2/1">>,
+     <<"http://127.0.0.1:8080/maps/map2/2">>,
+     <<"http://127.0.0.1:8080/maps/map2/3">>,
+     <<"http://127.0.0.1:8080/maps/map2/4">>,
+     <<"http://127.0.0.1:8080/maps/map2/5">>]
+        = lists:sort(jwalk:get({<<"keys">>, <<"links">>,{select, {<<"rel">>,<<"self">>}},<<"href">>},MapStruct)),
+
+    % Delete map
+    {ok,{{"HTTP/1.1",204,"No Content"},
+         [_, _, {"content-type","application/json"}],
+         []}} = httpc:request(delete, {binary_to_list(Map2), []}, [], []),
+    
+    % Try to delete a map that is not there
+    {ok,{{"HTTP/1.1",404,"Not Found"},
+         [_, _, {"content-length","0"},{"content-type","application/json"}],
+     []}} = httpc:request(delete, {binary_to_list(Map2), []}, [], []),
+
+    % There should now only be 2 Maps: map3 and map1.
+    {ok,{{"HTTP/1.1",200,"OK"}, 
+         [_, _, _, {"content-type","application/json"}],
+         PostDel}} = httpc:request(get, {"http://127.0.0.1:8080/maps", []}, [], []),
+
+    PostDelStruct = jsone:decode(list_to_binary(PostDel)),
+
+    2 = length(jwalk:get({<<"maps">>},PostDelStruct)),
+    [<<"http://127.0.0.1:8080/maps/map3">>] = jwalk:get({<<"maps">>, 1, <<"links">>,<<"href">>}, MapsStruct),
+    [<<"http://127.0.0.1:8080/maps/map1">>] = jwalk:get({<<"maps">>, 3, <<"links">>,<<"href">>}, MapsStruct),
+
+    % Delete Maps collection
+    {ok,{{"HTTP/1.1",204,"No Content"},
+         [_, _, {"content-type","application/json"}],
+         []}} = httpc:request(delete, {"http://127.0.0.1:8080/maps", []}, [], []),
+
+    {maps, []} = jc:maps().
+               
 
 collect() ->
     receive
