@@ -2,8 +2,8 @@
 %%% @author Jim Rosenblum
 %%% @copyright (C) 2018-2019, Jim Rosenblum
 %%% @doc Module that manages RESTful interactions for Maps and Map collections).
-%%% This is a Cowboy handler handling DELETE, GET, HEAD, and OPTIONS
-%%% verbs for the RESTful collections of Map and Maps.
+%%% This is a Cowboy handler handling DELETE, GET, HEAD, PUT, and OPTIONS
+%%% verbs for Map x Key X Value JC cache entries.
 %%%
 %%% Currently, only application/json is the only content-type provided.
 %%%
@@ -12,24 +12,25 @@
 %%% Created : 20 Oct 2018 by Jim Rosenblum
 %%% ----------------------------------------------------------------------------
 
--module(cb_collections_h).
+-module(cb_map_h).
 
 % Cowboy handler required function
 -export([init/2]).
 
 % RESTFUL functions
 -export([allowed_methods/2,
+         content_types_accepted/2,
          content_types_provided/2,
          delete_completed/2,
          delete_resource/2,
          resource_exists/2]).
 
-% Callback that handles constructing JSON responses
--export([collection_to_json/2]).
+% Callback that handles constructing JSON responses to GET and does the actual
+% put.
+-export([kv_to_json/2, put_kv/2]).
 
 % Handler state
--record(cb_coll_state, {op :: map | maps,
-                       body:: string()}).
+-record(cb_coll_state, {}).
 
 
 
@@ -46,21 +47,26 @@
                             when Req::cowboy_req:req(),
                                  State::#cb_coll_state{}.
 
-init(Req, Opts) ->
-    [Op | _] = Opts,
-    State = #cb_coll_state{op=Op},
+init(Req, _Opts) ->
+    State = #cb_coll_state{},
     {cowboy_rest, Req, State}.
 
 
+
+%%% ============================================================================
+%%% RESTful callbacks
+%%% ============================================================================
+
+
 %% -----------------------------------------------------------------------------
-%%
+%% 
 -spec allowed_methods (Req, State) -> {Method, Req, State}
                                       when Req::cowboy_req:req(),
                                            State::#cb_coll_state{},
                                            Method::nonempty_list().
 
 allowed_methods(Req, State) ->
-    Methods = [<<"DELETE">>, <<"GET">>, <<"HEAD">>, <<"OPTIONS">>], 
+    Methods = [<<"DELETE">>, <<"GET">>, <<"HEAD">>, <<"OPTIONS">>, <<"PUT">>], 
     {Methods, Req, State}.
 
 
@@ -74,26 +80,39 @@ allowed_methods(Req, State) ->
 
 content_types_provided(Req, State) ->
    Types =  [
-             {<<"application/json">>, collection_to_json}
+             {<<"application/json">>, kv_to_json}
             ],
     {Types, Req, State}.
 
 
 %% -----------------------------------------------------------------------------
-%% DELETE eith resource collection, maps or map, or the key within a map.
+%% Only accept urlencode for now.
+%%
+-spec content_types_accepted(Req, State) -> {Types, Req, State}
+                                            when Req::cowboy_req:req(),
+                                                 State::#cb_coll_state{},
+                                                 Types::cowboy:types().
+
+content_types_accepted(Req, State) ->
+   Types =  [
+             {<<"application/x-www-form-urlencoded">>, put_kv}
+            ],
+    {Types, Req, State}.
+
+
+%% -----------------------------------------------------------------------------
+%% DELETE the KV resource collection.
 %%
 -spec delete_resource(Req, State) -> {Result, Req, State}
                                      when Result::boolean(),
                                           Req::cowboy_req:req(),
                                           State::#cb_coll_state{}.
 
-delete_resource(Req, #cb_coll_state{op = maps} = State) ->                                          
-    ok = jc:flush(),
-    {true, Req, State};
-
-delete_resource(Req, #cb_coll_state{op = map} = State) ->
-     MapName = cowboy_req:binding(map, Req),   
-     ok = jc:evict_map_since(MapName,0),
+delete_resource(Req, State) ->
+    MapName = cowboy_req:binding(map, Req),
+    KeyName = cowboy_req:binding(key, Req),
+    lager:debug("~p: DELETing ~,~.", [MapName, KeyName]),
+    ok = jc:evict(MapName, KeyName),
     {true, Req, State}.
 
 
@@ -105,47 +124,71 @@ delete_resource(Req, #cb_coll_state{op = map} = State) ->
                                           Req::cowboy_req:req(),
                                           State::#cb_coll_state{}.
 
-delete_completed(Req, #cb_coll_state{op = maps} = State) ->
-    {maps, Maps} = jc:maps(),
-    {length(Maps) == 0, Req, State};
-
-delete_completed(Req, #cb_coll_state{op = map} = State) ->
+delete_completed(Req, State) ->
     MapName = cowboy_req:binding(map, Req),
-    {records, Size} = jc:map_size(MapName),
-    {Size == 0, Req, State}.
+    KeyName = cowboy_req:binding(key, Req),
+    {miss = jc:get(MapName, KeyName), Req, State}.
 
 
 %% -----------------------------------------------------------------------------
-%% Returns true when the resources exists, else flase.
+%% Returns true when the resource exists, else false.
 -spec resource_exists (Req, State) -> {boolean(), Req, State}
                                       when Req::cowboy_req:req(),
                                            State::#cb_coll_state{}.
 
-resource_exists(Req, #cb_coll_state{op = maps} = State) ->
+resource_exists(Req, State) ->
     % TODO optimize this
-    {maps, Maps} = jc:maps(),
-    {length(Maps) > 0, Req, State};
+    Map = cowboy_req:binding(map, Req),
+    Key = cowboy_req:binding(key, Req),
+    {miss /= jc:get(Map, Key), Req, State}.
 
-resource_exists(Req, #cb_coll_state{op = map} = State) ->
-    % TODO optimize this
-    MapName = cowboy_req:binding(map, Req),
-    {records, Records} = jc:map_size(MapName),
-    {Records > 0, Req, State}.
+
+
+%%% ============================================================================
+%%% Function to package MKV into JSON and function for handling put
+%%% ============================================================================
 
 
 %% -----------------------------------------------------------------------------
-%% Convert jc:key_set(map) and jc:maps() responses to json and 
+%% Convert jc:get(map, key) to JSON (or empty if head).
 %%
--spec collection_to_json(Req, State) ->{Value, Req, State}
+-spec kv_to_json(Req, State) ->{Value, Req, State}
                                       when Value::nonempty_list(iodata()),
                                            Req::cowboy_req:req(),
                                            State::#cb_coll_state{}.
 
-collection_to_json(Req, #cb_coll_state{op = map} = State) ->
-    {map_collection_body(Req), Req, State};
+kv_to_json(#{method := <<"GET">>} = Req, State) ->
+    Map = cowboy_req:binding(map, Req),
+    Key = cowboy_req:binding(key, Req),
+    lager:debug("~p: GET ~p:~p.",[?MODULE, Map, Key]),
 
-collection_to_json(Req, #cb_coll_state{op = maps} = State) ->
-    {get_or_head_maps(Req), Req, State}.
+    {ok, Value} = jc:get(Map, Key),
+    {kv_to_json(Req, Map, Key, Value), Req, State};
+
+kv_to_json(#{method := <<"HEAD">>} = Req, State) ->
+            {<<>>, Req, State}.
+
+
+%% -----------------------------------------------------------------------------
+%% Put the urlencoded value into the map and key indicated by url.
+%%
+-spec put_kv(Req, State) ->{true, Req, State}
+                                      when Req::cowboy_req:req(),
+                                           State::#cb_coll_state{}.
+put_kv(Req, State) ->
+    {ok, Body, Req1} = cowboy_req:read_urlencoded_body(Req),
+
+    Map = cowboy_req:binding(map, Req1),
+    Key = cowboy_req:binding(key, Req1),
+    Value = proplists:get_value(<<"value">>, Body),
+
+    lager:debug("~p: PUT ~p:~p in map ~p.",[?MODULE, Key, Value, Map]),
+
+    {ok, Key} = jc:put(Map, Key, Value),
+
+    {SHP, Path} = get_URI(Req),
+    Req2 = cowboy_req:set_resp_header(<<"location">>, [SHP, Path], Req1),
+    {true, Req2, State}.
 
 
 
@@ -154,30 +197,9 @@ collection_to_json(Req, #cb_coll_state{op = maps} = State) ->
 %%% ============================================================================
 
 
-map_collection_body(#{method := Verb} = Req) ->
-    MapName = cowboy_req:binding(map, Req),
-    lager:debug("~p: ~p map ~p as JSON.",[?MODULE, Verb, MapName]),
-    case Verb of
-        <<"GET">> ->
-            {ok, KeyList} = jc:key_set(MapName),
-            map_to_json(Req, MapName, KeyList);
-        <<"HEAD">> ->
-            <<>>
-    end.
-
-
-get_or_head_maps(#{method := Verb} = Req) ->
-    lager:debug("~p: ~p maps as JSON.", [?MODULE, Verb]),
-    case Verb of
-        <<"GET">> ->
-            {maps, MapList} = jc:maps(),
-            maps_to_json(Req, MapList);
-        <<"HEAD">> ->
-            <<>>
-    end.
-
-
 % ------------------------------------------------------------------------------
+% Return {Scheme://Host:Port, Path} of the request.
+
 get_URI(Req) ->
     Scheme = cowboy_req:scheme(Req),
     Host = cowboy_req:host(Req),
@@ -187,46 +209,15 @@ get_URI(Req) ->
 
 
 % ------------------------------------------------------------------------------
-% Construct the JSON represention a mapa collection.
+% Construct the RESTFul JSON represention for jc:get(map, key).
 %
-map_to_json(Req, MapName, KeyList) ->
+kv_to_json(Req, Map, Key, Value) ->
     {SHP, Path} = get_URI(Req),
     Url = [SHP, Path],
-    ListOfMaps = 
-        lists:foldl(fun(Key, Acc) ->
-                            [[<<"{\"key\":\"">>,Key,<<"\",">>,
-                              <<"\"links\": [{\"rel\":\"self\",">>,
-                              <<"\"href\":\"">>, Url, <<"/">>,Key,
-                              <<"\"}]}">>]|Acc]
-                    end,
-                    [],
-                    KeyList),
-    Separated = lists:join(<<",">>,ListOfMaps),
-    [<<"{\"map\":\"">>, MapName, <<"\", \"keys\": [">>, Separated, <<"],">>,
+    [<<"{\"map\":\"">>, Map, <<"\",">>,
+     <<"\"key\": \"">>, Key, <<"\",">>,
+     <<"\"value\": \"">>, Value, <<"\",">>,
      <<"\"links\": [{\"rel\":\"self\",\"href\":\"">>,Url,<<"\"},">>,
-     <<"{\"rel\":\"maps\",\"href\":\"">>,SHP,<<"/maps\"}]}">>].
-
-
-% ------------------------------------------------------------------------------
-% Construct the JSON represention the maps collection.
-% {maps: [{method:GET,URL:http://host:port/path/mapname},...,{}]}
-%
-maps_to_json(Req, MapList) ->
-    {SHP, Path} = get_URI(Req),
-    Url = [SHP, Path],
-
-    ListOfMaps = 
-        lists:foldl(fun(MapName, Acc) ->
-                            [[<<"{\"map\":\"">>,MapName,<<"\",">>,
-                              <<"\"links\": [{\"rel\":\"self\",">>,
-                              <<"\"href\":\"">>, Url, <<"/">>, MapName, 
-                              <<"\"}]}">>]|Acc]
-                    end,
-                    [],
-                    MapList),
-    Separated = lists:join(<<",">>,ListOfMaps),
-    [<<"{\"maps\":">>, <<"[">>, Separated, <<"],">>,
-     <<" \"links\": [{\"rel\":\"self\",\"href\":\"">>,Url,<<"\"}]}">>].
-    
+     <<"{\"rel\":\"map\",\"href\":\"">>,SHP,<<"/maps/">>,Map,<<"\"}]}">>].
 
 

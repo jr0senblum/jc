@@ -40,7 +40,7 @@
 -export([cluster_test/1]).
 -export([auto_analyzer_test/1]).
 
--export([rest_maps_test/1]).
+-export([rest_maps_test/1, rest_map_test/1]).
 
 % So we can test that all erlang types are valid keys, values and maps
 -record(rec, {value}).
@@ -50,7 +50,7 @@
 
 
 all() ->
-    [rest_maps_test,
+    [rest_maps_test, rest_map_test,
      sysconfig_test,auto_analyzer_test,
      meta_data_test, 
      maps_test, map_size_test,
@@ -1027,23 +1027,23 @@ rest_maps_test(_Config) ->
     _ = [jc:put(<<"map2">>,list_to_binary(integer_to_list(I)),1) || I <- lists:seq(1,5)],
     _ = [jc:put(<<"map3">>,list_to_binary(integer_to_list(I)),1) || I <- lists:seq(1,5)],
 
-    % Alowable methods on Map and Maps collections are Delete, Get, Head, and Options
-    {ok,{{"HTTP/1.1",405,"Method Not Allowed"},
-         [_date, _server, 
+    % Alowable methods on Map and Maps collections are Delete, Get, Head, Options, and Put
+    {ok,{{"HTTP/1.1",200,"OK"},
+         [_date , _server, 
           {"allow","DELETE, GET, HEAD, OPTIONS"},
-          {"content-length","0"}],[]}} = httpc:request(put, {"http://127.0.0.1:8080/maps", []}, [], []),
+          {"content-length","0"}], []}} = httpc:request(options, {"http://127.0.0.1:8080/maps", []}, [], []),
 
-    % Disalow other methods
+    % Disallow other methods
     {ok,{{"HTTP/1.1",405,"Method Not Allowed"},
          [_, _, 
           {"allow","DELETE, GET, HEAD, OPTIONS"},
-          {"content-length","0"}],[]}} = httpc:request(put, {"http://127.0.0.1:8080/maps/map1", []}, [], []),
-
-    % Disalow other content types
+          {"content-length","0"}],[]}} =  httpc:request(post, {"http://127.0.0.1:8080/maps/M", [],"application/x-www-form-urlencoded",""}, [], []),
+    
+    % Disallow other content types
     {ok,{{"HTTP/1.1",406,"Not Acceptable"},
          [_, _, _],[]}} = httpc:request(get, {"http://127.0.0.1:8080/maps", [{"accept","text/html"}]}, [], []),
 
-    % Head works - 200 and 404 - on Map and Maps collectin
+    % Head works - 200 and 404 - on Map and Maps collection
     {ok,{{"HTTP/1.1",200,"OK"}, 
          [_, _, {"content-length","0"}, {"content-type","application/json"}],
          []}} = httpc:request(head, {"http://127.0.0.1:8080/maps", []}, [], []),
@@ -1109,8 +1109,92 @@ rest_maps_test(_Config) ->
          [_, _, {"content-type","application/json"}],
          []}} = httpc:request(delete, {"http://127.0.0.1:8080/maps", []}, [], []),
 
-    {maps, []} = jc:maps().
-               
+    {maps, []} == jc:maps().
+
+rest_map_test(_config)->
+    _ = [jc:put(<<"map1">>,list_to_binary(integer_to_list(I)),<<"1">>) || I <- lists:seq(1,5)],
+    _ = [jc:put(<<"map2">>,list_to_binary(integer_to_list(I)),<<"1">>) || I <- lists:seq(1,5)],
+    _ = [jc:put(<<"map3">>,list_to_binary(integer_to_list(I)),<<"1">>) || I <- lists:seq(1,5)],
+   
+    % Alowable methods on Map and Maps collections are Delete, Get, Head, Options, and Put
+    {ok,{{"HTTP/1.1",200,"OK"},
+         [_ , _, 
+          {"allow","DELETE, GET, HEAD, OPTIONS, PUT"},
+          {"content-length","0"}], []}
+    } = httpc:request(options, {"http://127.0.0.1:8080/maps/map1/1", []}, [], []),
+
+
+    % Disallow other methods
+    {ok,{{"HTTP/1.1",405,"Method Not Allowed"},
+         [_, _, 
+          {"allow","DELETE, GET, HEAD, OPTIONS, PUT"},
+          {"content-length","0"}], []}
+    } =  httpc:request(post, {"http://127.0.0.1:8080/maps/map1/1", [],"application/x-www-form-urlencoded",""}, [], []),
+    
+    % Disallow other content types
+    {ok,{{"HTTP/1.1",406,"Not Acceptable"},
+         [_, _, _],[]}
+    } = httpc:request(get, {"http://127.0.0.1:8080/maps/map1/1", [{"accept","text/html"}]}, [], []),
+
+    % Head works - 200 and 404 - on KV.
+    {ok,{{"HTTP/1.1",200,"OK"}, 
+         [_, _, {"content-length","0"}, {"content-type","application/json"}],
+         []}
+    } = httpc:request(head, {"http://127.0.0.1:8080/maps/map1/1", []}, [], []),
+    
+    % Get works - 200 and 404 - on KV.
+    {ok,{{"HTTP/1.1",200,"OK"},
+         [_, _, 
+          {"content-length","162"},
+          {"content-type","application/json"}],
+         "{\"map\":\"map1\",\"key\": \"1\",\"value\": \"1\",\"links\": [{\"rel\":\"self\",\"href\":\"http://127.0.0.1:8080/maps/map1/1\"},{\"rel\":\"map\",\"href\":\"http://127.0.0.1:8080/maps/map1\"}]}"}
+    } = httpc:request(get, {"http://127.0.0.1:8080/maps/map1/1", []}, [], []),
+
+
+    {ok,{{"HTTP/1.1",404,"Not Found"},
+         [_, _, _, _], []}
+    } = httpc:request(get, {"http://127.0.0.1:8080/maps/map1/11", []}, [], []),
+
+
+    % PUT a new kv into a Map collection.
+    {ok,{{"HTTP/1.1",201,"Created"},
+         [_, 
+          {"location","http://127.0.0.1:8080/maps/map11/newkey"}, 
+          _,
+          {"content-length","0"},
+          {"content-type","application/json"}],
+         []}} = httpc:request(put, {"http://127.0.0.1:8080/maps/map11/newkey", 
+                                    [],
+                                    "application/x-www-form-urlencoded",
+                                    "value=newvalue"}, [], []),
+
+    {ok, <<"newvalue">>} = jc:get(<<"map11">>, <<"newkey">>),
+
+    % second time should update it, not create it.
+    {ok,{{"HTTP/1.1",204,"No Content"},
+         [_,
+          {"location","http://127.0.0.1:8080/maps/map11/newkey"},
+          _, _],
+         []}} = httpc:request(put, {"http://127.0.0.1:8080/maps/map11/newkey", 
+                                    [],
+                                    "application/x-www-form-urlencoded",
+                                    "value=value2"}, [], []),
+    {ok, <<"value2">>} = jc:get(<<"map11">>, <<"newkey">>),
+
+
+    % Delete
+    {ok,{{"HTTP/1.1",202,"Accepted"},
+         [_, _,
+          {"content-length","0"}, _],
+         []}
+    } = httpc:request(delete, {"http://127.0.0.1:8080/maps/map11/newkey",  []}, [], []),
+    miss = jc:get(<<"map11">>, <<"newkey">>),
+
+    {ok,{{"HTTP/1.1",404,"Not Found"},
+     [_, _,
+      {"content-length","0"}, _],
+     []}
+    } = httpc:request(delete, {"http://127.0.0.1:8080/maps/map11/newkey",  []}, [], []).
 
 collect() ->
     receive

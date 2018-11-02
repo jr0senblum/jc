@@ -57,8 +57,9 @@ maybe_start_REST_service(true) ->
 
     Dispatch = cowboy_router:compile([
                                       {RestIP, [
-                                                {RestRoot ++ "maps", cb_collections_h, [maps]},
-                                                {RestRoot ++ "/maps/:map", cb_collections_h, [map]}
+                                                {RestRoot ++ "/maps/:map/:key", cb_map_h, [key]},
+                                                {RestRoot ++ "/maps/:map", cb_collections_h, [map]},
+                                                {RestRoot ++ "maps", cb_collections_h, [maps]}
                                             ]}
                                      ]),
 

@@ -26,6 +26,7 @@
   {env,[]},
   {modules, [
              cb_collections_h,
+             cb_map_h,
              jc,
              jc_analyzer,
              jc_app,
