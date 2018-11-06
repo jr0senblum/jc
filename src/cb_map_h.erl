@@ -14,7 +14,7 @@
 
 -module(cb_map_h).
 
-% Cowboy handler required function
+% Cowboy handler required functions
 -export([init/2]).
 
 % RESTFUL functions
@@ -25,7 +25,7 @@
          delete_resource/2,
          resource_exists/2]).
 
-% Callback that handles constructing JSON responses to GET and does the actual
+% Callbacks that handles constructing JSON responses to GET and does the actual
 % put.
 -export([kv_to_json/2, put_kv/2]).
 
@@ -40,8 +40,7 @@
 
 
 %% -----------------------------------------------------------------------------
-%% Initialize state to be parameter passed into the handler indicating 
-%% whether we are dealing with map or maps collection.
+%% Initialize state 
 %%
 -spec init(_,nonempty_maybe_improper_list())-> {'cowboy_rest', Req, State}
                             when Req::cowboy_req:req(),
@@ -181,10 +180,11 @@ put_kv(Req, State) ->
     Map = cowboy_req:binding(map, Req1),
     Key = cowboy_req:binding(key, Req1),
     Value = proplists:get_value(<<"value">>, Body),
+    TTL = get_ttl(Body),
 
     lager:debug("~p: PUT ~p:~p in map ~p.",[?MODULE, Key, Value, Map]),
 
-    {ok, Key} = jc:put(Map, Key, Value),
+    {ok, Key} = jc:put(Map, Key, Value, TTL),
 
     {SHP, Path} = get_URI(Req),
     Req2 = cowboy_req:set_resp_header(<<"location">>, [SHP, Path], Req1),
@@ -221,3 +221,17 @@ kv_to_json(Req, Map, Key, Value) ->
      <<"{\"rel\":\"map\",\"href\":\"">>,SHP,<<"/maps/">>,Map,<<"\"}]}">>].
 
 
+get_ttl(Body) ->
+    case proplists:get_value(<<"ttl">>, Body, 0) of
+        0 -> 
+            0;
+        Other -> 
+            try binary_to_integer(Other) 
+            catch
+                error:badarg ->
+                    0
+            end
+    end.
+
+                    
+                    

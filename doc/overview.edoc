@@ -10,7 +10,7 @@ JC
 @doc
 == JC == 
 == Erlang, Distributable, In-Memory Cache ==
-=== JSON-Query; Consistency Assist; and Simple, TCP Interoperability Protocol ===
+=== JSON-Query, PUB-SUB Eventing, Consistency Assist, and Basic RESTful Interface ===
 === Features ===
 <ul>
 <li>Cache entries are Map, Key, Value, [TTL], [Sequence]</li>
@@ -53,7 +53,7 @@ JC
 <li>Clients can create and subscribe to arbitrary 'topics' and 
   broadcast arbitrary messages under those topic names</li>
 <li>Clients can subscribe to node-up and node-down events </li>
-<li>Interopability: Binary string over TCP returning JSON</li>
+<li>Interopability: Simple RESTful service for basic cache operations</li>
 <li>Bridge process that accepts messages from a client indicating
   cache operations, executes the cache operations and returns the
   results to the client. This has been used with JInterface to 
@@ -169,49 +169,9 @@ or
 `{jc_node_events, {nodeup, UppedNode, [ActiveNodes],[ConfiguredNodes]}}'
 </code></pre>
 <p>{From, {node_topic_unsub}} -&gt; ok.</p>
-=== Interoperability: String protocol ===
-<p>This is a binary-encoded, string protocol used to provide socket-based
-interoperability with JC. </p>
-<p>All messages to the cache system are string representations of a tuple, All
-messages form the caching system to the client are JSON</p>
-<p>The protocol defines three message types: CONNECT, CLOSE and COMMAND all 
-of which are binary strings consisting of an 8-byte size followed by the
-actual command messages.</p>
-<p>Responses are also binary strings with an 8-byte size prefix.</p>
-<p>The CONNECT command initiates a session, </p>
-<pre><code>M = &lt;&lt;"{connect,{version,\"1.0\"}}"&gt;&gt;
+=== Interoperability: Basic RESTful service ===
+<p></p>
 
-Size is 25, so the CONNECT message is:
-
-&lt;&lt;25:8, M/binary&gt;&gt; = 
-&lt;&lt;25,40,58,99,111,110,110,101,99,116,32,123,58,118,101,
-  114,115,105,111,110,32,49,46,48,125,41&gt;&gt;
-</code></pre>
-<p>The server will respond to a CONNECT command with either an error or
-the encoded version of {"version":" "1.0""}</p>
-<pre><code>&lt;&lt;15:8, &lt;&lt;"{\"version\":1.0}"&gt;&gt; = 
-&lt;&lt;15,123,34,118,101,114,115,105,111,110,34,58,49,46,48,125&gt;&gt;
-</code></pre>
-<p>The CLOSE command closes the socket, ending the session</p>
-<pre><code>M = &lt;&lt;"{close}"&gt;&gt;
-
- Size is 7 so the CLOSE message is:
- &lt;&lt;7,123,99,108,111,115,101,125&gt;&gt;
-</code></pre>
-<p>COMMAND messages are string versions of the tuple-messages which 
-jc_bridge uses only without the self() parameter. For example</p>
-<pre><code>{self(), {put, Map, Key, Value}} becomes 
-{put, Map, Key, Value}
-</code></pre>
-<p>The return will be an encoded version of a JSON string. A client session 
-might look as follows:</p>
-<pre><code>client:send("{put, evs, \"1\", \"{\\\"value:\\\":true}\"}")
-&lt;&lt;"{\"ok\":1}"&gt;&gt;
-
-client:send("{get, evs, \"1\"}"),
-    &lt;&lt;"{\"ok\":"{\\\"value\\\":true}\"}"&gt;&gt;
-
-</code></pre>
 === Configuration ===
 <ul>
 <li>Application configuration is in sys.config which is heavily

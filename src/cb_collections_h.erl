@@ -1,7 +1,7 @@
 %%% ----------------------------------------------------------------------------
 %%% @author Jim Rosenblum
 %%% @copyright (C) 2018-2019, Jim Rosenblum
-%%% @doc Module that manages RESTful interactions for Maps and Map collections).
+%%% @doc Module that manages RESTful interactions for Maps and Map collections.
 %%% This is a Cowboy handler handling DELETE, GET, HEAD, and OPTIONS
 %%% verbs for the RESTful collections of Map and Maps.
 %%%
@@ -14,7 +14,7 @@
 
 -module(cb_collections_h).
 
-% Cowboy handler required function
+% Cowboy handler required functions
 -export([init/2]).
 
 % RESTFUL functions
@@ -52,6 +52,12 @@ init(Req, Opts) ->
     {cowboy_rest, Req, State}.
 
 
+
+%%% ============================================================================
+%%% RESTful callbacks
+%%% ============================================================================
+
+
 %% -----------------------------------------------------------------------------
 %%
 -spec allowed_methods (Req, State) -> {Method, Req, State}
@@ -80,7 +86,7 @@ content_types_provided(Req, State) ->
 
 
 %% -----------------------------------------------------------------------------
-%% DELETE eith resource collection, maps or map, or the key within a map.
+%% DELETE the resource collection, maps or map, or the key within a map.
 %%
 -spec delete_resource(Req, State) -> {Result, Req, State}
                                      when Result::boolean(),
@@ -116,7 +122,7 @@ delete_completed(Req, #cb_coll_state{op = map} = State) ->
 
 
 %% -----------------------------------------------------------------------------
-%% Returns true when the resources exists, else flase.
+%% Returns true when the resources exists, else false.
 -spec resource_exists (Req, State) -> {boolean(), Req, State}
                                       when Req::cowboy_req:req(),
                                            State::#cb_coll_state{}.
@@ -131,6 +137,12 @@ resource_exists(Req, #cb_coll_state{op = map} = State) ->
     MapName = cowboy_req:binding(map, Req),
     {records, Records} = jc:map_size(MapName),
     {Records > 0, Req, State}.
+
+
+
+%%% ============================================================================
+%%% Function to package Map and Maps collections into JSON 
+%%% ============================================================================
 
 
 %% -----------------------------------------------------------------------------
@@ -178,6 +190,8 @@ get_or_head_maps(#{method := Verb} = Req) ->
 
 
 % ------------------------------------------------------------------------------
+% Return {Scheme://Host:Port, Path} of the request.
+%
 get_URI(Req) ->
     Scheme = cowboy_req:scheme(Req),
     Host = cowboy_req:host(Req),
@@ -187,7 +201,7 @@ get_URI(Req) ->
 
 
 % ------------------------------------------------------------------------------
-% Construct the JSON represention a mapa collection.
+% Construct the JSON represention of a map collection.
 %
 map_to_json(Req, MapName, KeyList) ->
     {SHP, Path} = get_URI(Req),
@@ -209,7 +223,6 @@ map_to_json(Req, MapName, KeyList) ->
 
 % ------------------------------------------------------------------------------
 % Construct the JSON represention the maps collection.
-% {maps: [{method:GET,URL:http://host:port/path/mapname},...,{}]}
 %
 maps_to_json(Req, MapList) ->
     {SHP, Path} = get_URI(Req),
