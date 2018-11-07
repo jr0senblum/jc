@@ -1170,6 +1170,8 @@ rest_map_test(_config)->
 
     {ok, <<"newvalue">>} = jc:get(<<"map11">>, <<"newkey">>),
 
+    
+
     % second time should update it, not create it.
     {ok,{{"HTTP/1.1",204,"No Content"},
          [_,
@@ -1181,6 +1183,50 @@ rest_map_test(_config)->
                                     "value=value2"}, [], []),
     {ok, <<"value2">>} = jc:get(<<"map11">>, <<"newkey">>),
 
+    % Add with TTL of 1 second
+    {ok,{{"HTTP/1.1",201,"Created"},
+         [_,
+          {"location","http://127.0.0.1:8080/maps/map11/ttlKey"},
+          _,
+          {"content-length","0"},
+          {"content-type","application/json"}],
+         []}
+    } = httpc:request(put, {"http://127.0.0.1:8080/maps/map11/ttlKey", 
+                            [],
+                            "application/x-www-form-urlencoded",
+                            "value=value2&ttl=1"}, [], []),
+    {ok, <<"value2">>} = jc:get(<<"map11">>, <<"ttlKey">>),
+    timer:sleep(1004),
+    miss = jc:get(<<"map11">>, <<"ttlKey">>),
+
+    % Add with TTL of 3 seconds and seq no
+    {ok,{{"HTTP/1.1",201,"Created"},
+         [_,
+          {"location","http://127.0.0.1:8080/maps/map11/ttlKey"},
+          _,
+          {"content-length","0"},
+          {"content-type","application/json"}],
+         []}
+    } = httpc:request(put, {"http://127.0.0.1:8080/maps/map11/ttlKey", 
+                            [],
+                            "application/x-www-form-urlencoded",
+                            "value=value2&ttl=3&sequence=10"}, [], []),
+
+
+    % Bad request because of lower sequence no.
+    {ok,{{"HTTP/1.1",400,"Bad Request"},
+         [_,
+          {"location","http://127.0.0.1:8080/maps/map11/ttlKey"},
+          _,
+          {"content-length","0"},
+          {"content-type","application/json"}],
+         []}
+    } = httpc:request(put, {"http://127.0.0.1:8080/maps/map11/ttlKey", 
+                            [],
+                            "application/x-www-form-urlencoded",
+                            "value=value2&ttl=3&sequence=1"}, [], []),
+    timer:sleep(3004),
+    miss = jc:get(<<"map11">>, <<"ttlKey">>),
 
     % Delete
     {ok,{{"HTTP/1.1",202,"Accepted"},

@@ -54,10 +54,11 @@ JC
 * Restfull Interface
   * String Map, Key, and Values
   * Provided: application/json, Accepted: application/x-www-form-urlencoded
-  * DELETE, GET, HEAD, OPTIONS supported for deleting, creating and retrieving
-    Maps and Key/Values.
+  * DELETE, GET, HEAD, and OPTIONS supported for deleting, creating and retrieving
+    Maps
+  * DELETE, GET, HEAD, OPTIONS, and PUT are supported for deleting, creating and 
+    retrieving cache entries (Map, Key, Values).
 * Fine-grained logging via Lager
-
 
 
 ### Cache Functions (jc)
@@ -175,8 +176,20 @@ Identical to the Create and Evict family of functions of the jc module
   {From, {node_topic_unsub}} -> ok.
 
 
-### Interoperability: RESTFUL
-Restful interface
+### Interoperability: REST interface    
+* Restful interface
+  * Map and Maps (jc:s supports DELETE, GET, HEAD and OPTIONS with 
+    application/json 
+    *  /maps
+    * /maps/someMap
+  * Cache entries (Map, Key, Value) supports DELETE, GET, HEAD, OPTIONS, and PUT
+    with applicattion/json 
+    * /maps/someMap/someKey
+    * urlencoded type accepted with PUT parameters of value and (optionally) ttl an sequence
+      curl -X PUT -d 'value=200&ttl=100' http://127.0.0.1:8080/maps/unit/3A 
+    * Adding a sequence to the parameters uses the jc_s module
+      curl -X PUT -d 'value=200&ttl=100&sequence=10' http://127.0.0.1:8080/maps/unit/3A 
+ 
 
 
 ### Configuration

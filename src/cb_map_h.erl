@@ -170,25 +170,48 @@ kv_to_json(#{method := <<"HEAD">>} = Req, State) ->
 
 %% -----------------------------------------------------------------------------
 %% Put the urlencoded value into the map and key indicated by url.
+%% Use TTL if ttl=xx is supplied, use jc_s if sequence=XX is supplied.
 %%
 -spec put_kv(Req, State) ->{true, Req, State}
                                       when Req::cowboy_req:req(),
                                            State::#cb_coll_state{}.
 put_kv(Req, State) ->
     {ok, Body, Req1} = cowboy_req:read_urlencoded_body(Req),
-
-    Map = cowboy_req:binding(map, Req1),
-    Key = cowboy_req:binding(key, Req1),
+    case value_to_int(<<"sequence">>, false, Body) of
+        false -> put_kv_jc(Req1, Body, State);
+        Seq -> put_kv_jc_s(Req1, Body, State, Seq)
+    end.
+    
+put_kv_jc_s(Req, Body, State, Seq) ->
+    Map = cowboy_req:binding(map, Req),
+    Key = cowboy_req:binding(key, Req),
     Value = proplists:get_value(<<"value">>, Body),
-    TTL = get_ttl(Body),
+    TTL = value_to_int(<<"ttl">>, 0, Body),
+    {SHP, Path} = get_URI(Req),
 
-    lager:debug("~p: PUT ~p:~p in map ~p.",[?MODULE, Key, Value, Map]),
+    lager:debug("~p: jc_s:put(~p, ~p, ~p, ~p, ~p).",[?MODULE, Map, Key, Value, TTL, Seq]),
+    case jc_s:put(Map, Key, Value, TTL, Seq) of
+        {ok, Key} ->
+            Req1 = cowboy_req:set_resp_header(<<"location">>, [SHP, Path], Req),
+            {true, Req1, State};
+        {error, out_of_seq} ->
+            Req1 = cowboy_req:set_resp_header(<<"location">>, [SHP, Path], Req),
+            {false, Req1, State}
+    end.
+
+put_kv_jc(Req, Body, State) ->
+    Map = cowboy_req:binding(map, Req),
+    Key = cowboy_req:binding(key, Req),
+    Value = proplists:get_value(<<"value">>, Body),
+    TTL = value_to_int(<<"ttl">>, 0, Body),
+
+    lager:debug("~p: jc:put(~p, ~p, ~p, ~p).",[?MODULE, Map, Key, Value, TTL]),
 
     {ok, Key} = jc:put(Map, Key, Value, TTL),
 
     {SHP, Path} = get_URI(Req),
-    Req2 = cowboy_req:set_resp_header(<<"location">>, [SHP, Path], Req1),
-    {true, Req2, State}.
+    Req1 = cowboy_req:set_resp_header(<<"location">>, [SHP, Path], Req),
+    {true, Req1, State}.
 
 
 
@@ -221,15 +244,21 @@ kv_to_json(Req, Map, Key, Value) ->
      <<"{\"rel\":\"map\",\"href\":\"">>,SHP,<<"/maps/">>,Map,<<"\"}]}">>].
 
 
-get_ttl(Body) ->
-    case proplists:get_value(<<"ttl">>, Body, 0) of
-        0 -> 
-            0;
+% ------------------------------------------------------------------------------
+% Extract Value for Key (or Default, if not present in the list). Convert to 
+% integer.
+%
+value_to_int(Key, Default, Body) ->
+    case proplists:get_value(Key, Body, Default) of
+        Default -> 
+            Default;
         Other -> 
             try binary_to_integer(Other) 
             catch
                 error:badarg ->
-                    0
+                    lager:warning("~p: Bad arg: ~p, expecting binary integer. Using ~p instead.", 
+                                  [?MODULE, Other, Default]),
+                    Default
             end
     end.
 
