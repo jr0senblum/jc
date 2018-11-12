@@ -29,7 +29,7 @@
 
 % Handler state
 -record(cb_coll_state, {op :: map | maps,
-                       body:: string()}).
+                        body:: string()}).
 
 
 
@@ -134,9 +134,23 @@ resource_exists(Req, #cb_coll_state{op = maps} = State) ->
 
 resource_exists(Req, #cb_coll_state{op = map} = State) ->
     % TODO optimize this
-    MapName = cowboy_req:binding(map, Req),
-    {records, Records} = jc:map_size(MapName),
-    {Records > 0, Req, State}.
+    Map = cowboy_req:binding(map, Req),
+    {records, Records} = jc:map_size(Map),
+    {Records > 0, Req, State};
+
+resource_exists(Req, #cb_coll_state{op = search} = State) ->
+    % If the resource exists, store in the State so we don't have to
+    % pull them again as the GET unfolds.
+    Map = cowboy_req:binding(map, Req),
+    Path = cowboy_req:binding(path, Req),
+
+    case jc:values_match(Map, Path) of
+        {ok, []} ->
+            {false, Req, State};
+        {ok, Results} ->
+            {true, Req, State#cb_coll_state{body=Results}}
+    end.
+
 
 
 
@@ -156,8 +170,14 @@ resource_exists(Req, #cb_coll_state{op = map} = State) ->
 collection_to_json(Req, #cb_coll_state{op = map} = State) ->
     {map_collection_body(Req), Req, State};
 
+collection_to_json(Req, #cb_coll_state{op = search} = State) ->
+    {kv_collection_body(Req, State#cb_coll_state.body), Req, State};
+
 collection_to_json(Req, #cb_coll_state{op = maps} = State) ->
     {get_or_head_maps(Req), Req, State}.
+
+
+
 
 
 
@@ -165,6 +185,17 @@ collection_to_json(Req, #cb_coll_state{op = maps} = State) ->
 %%% Internal functions
 %%% ============================================================================
 
+% kv collection is the result of a json .path search, KVList is the results of
+% the search.
+kv_collection_body(#{method := Verb} = Req, KVList) ->
+    MapName = cowboy_req:binding(map, Req),
+    lager:debug("~p: ~p map ~p as JSON.",[?MODULE, Verb, MapName]),
+    case Verb of
+        <<"GET">> ->
+            kvs_to_json(Req, MapName, KVList);
+        <<"HEAD">> ->
+            <<>>
+    end.
 
 map_collection_body(#{method := Verb} = Req) ->
     MapName = cowboy_req:binding(map, Req),
@@ -200,9 +231,30 @@ get_URI(Req) ->
     {[Scheme, <<"://">>, Host, <<":">>, Port],Path}.
 
 
+
+
 % ------------------------------------------------------------------------------
 % Construct the JSON represention of a map collection.
 %
+kvs_to_json(Req, MapName, KVList) ->
+    {SHP, Path} = get_URI(Req),
+    Url = [SHP, Path],
+    ListOfMaps = 
+        lists:foldl(fun({Key, Value}, Acc) ->
+                            [[<<"{\"key\":\"">>,Key,<<"\",">>,
+                              <<"\"value\":">>,Value,<<",">>,
+                              <<"\"links\": [{\"rel\":\"self\",">>,
+                              <<"\"href\":\"">>, SHP, <<"/maps/">>,MapName, <<"/">>, Key,
+                              <<"\"}]}">>]|Acc]
+                    end,
+                    [],
+                    KVList),
+
+    Separated = lists:join(<<",">>,ListOfMaps),
+    [<<"{\"map\":\"">>, MapName, <<"\", \"results\": [">>, Separated, <<"],">>,
+     <<"\"links\": [{\"rel\":\"self\",\"href\":\"">>,Url,<<"\"},">>,
+     <<"{\"rel\":\"map\",\"href\":\"">>,SHP,<<"/maps/">>,MapName,<<"\"}]}">>].
+
 map_to_json(Req, MapName, KeyList) ->
     {SHP, Path} = get_URI(Req),
     Url = [SHP, Path],

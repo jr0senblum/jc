@@ -1183,6 +1183,21 @@ rest_map_test(_config)->
                                     "value=value2"}, [], []),
     {ok, <<"value2">>} = jc:get(<<"map11">>, <<"newkey">>),
 
+    % Badarg: TTL is defaulted to infinity so 201
+    {ok,{{"HTTP/1.1",201,"Created"},
+         [_,
+          {"location","http://127.0.0.1:8080/maps/map11/ttlKey"},
+          _,
+          {"content-length","0"},
+          {"content-type","application/json"}],
+         []}
+    } = httpc:request(put, {"http://127.0.0.1:8080/maps/map11/ttlKey", 
+                            [],
+                            "application/x-www-form-urlencoded",
+                            "value=value2&ttl=small"}, [], []),
+
+    ok = jc:evict(<<"map11">>,<<"ttlKey">>),
+
     % Add with TTL of 1 second
     {ok,{{"HTTP/1.1",201,"Created"},
          [_,
