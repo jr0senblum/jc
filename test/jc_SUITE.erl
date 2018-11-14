@@ -40,7 +40,7 @@
 -export([cluster_test/1]).
 -export([auto_analyzer_test/1]).
 
--export([rest_maps_test/1, rest_map_test/1]).
+-export([rest_maps_test/1, rest_map_test/1, rest_values_match_test/1]).
 
 % So we can test that all erlang types are valid keys, values and maps
 -record(rec, {value}).
@@ -50,7 +50,7 @@
 
 
 all() ->
-    [rest_maps_test, rest_map_test,
+    [rest_maps_test, rest_map_test,rest_values_match_test,
      sysconfig_test,auto_analyzer_test,
      meta_data_test, 
      maps_test, map_size_test,
@@ -1021,6 +1021,21 @@ cluster_test(_Config) ->
     rpc:call('jc3@127.0.0.1', jc, stop, []),
     collect_error = collect().
 
+rest_values_match_test(_Confi) ->
+    A= "{\"widget\": {\n    \"debug\": \"on\",\n    \"window\": {\n        \"title\": \"Sample Konfabulator Widget\",\n        \"name\": \"main_window\",\n        \"width\": 500,\n        \"height\": 500\n    },\n    \"image\": { \n        \"src\": \"Images/Sun.png\",\n        \"name\": \"sun1\",\n        \"hOffset\": 250,\n        \"vOffset\": 250,\n        \"alignment\": \"center\"\n    },\n    \"text\": {\n        \"data\": \"Click Here\",\n        \"size\": 36,\n        \"style\": \"bold\",\n        \"name\": \"text1\",\n        \"hOffset\": 250,\n        \"vOffset\": 100,\n        \"alignment\": \"center\",\n        \"onMouseUp\": \"sun1.opacity = (sun1.opacity / 100) * 90;\"\n    }\n}}",
+    
+    jc:put(<<"us">>,<<"1">>,list_to_binary(A)),
+    jc:put(<<"us">>,<<"2">>,list_to_binary(A)),
+
+    {ok,{{"HTTP/1.1",200,"OK"},
+         [_,
+          {"server","Cowboy"},
+          _,
+          {"content-type","application/json"}],
+         "{\"map\":\"us\", \"results\": [{\"key\":\"1\",\"value\":{\"widget\": {\n    \"debug\": \"on\",\n    \"window\": {\n        \"title\": \"Sample Konfabulator Widget\",\n        \"name\": \"main_window\",\n        \"width\": 500,\n        \"height\": 500\n    },\n    \"image\": { \n        \"src\": \"Images/Sun.png\",\n        \"name\": \"sun1\",\n        \"hOffset\": 250,\n        \"vOffset\": 250,\n        \"alignment\": \"center\"\n    },\n    \"text\": {\n        \"data\": \"Click Here\",\n        \"size\": 36,\n        \"style\": \"bold\",\n        \"name\": \"text1\",\n        \"hOffset\": 250,\n        \"vOffset\": 100,\n        \"alignment\": \"center\",\n        \"onMouseUp\": \"sun1.opacity = (sun1.opacity / 100) * 90;\"\n    }\n}},\"links\": [{\"rel\":\"self\",\"href\":\"http://127.0.0.1:8080/maps/us/1\"}]},{\"key\":\"2\",\"value\":{\"widget\": {\n    \"debug\": \"on\",\n    \"window\": {\n        \"title\": \"Sample Konfabulator Widget\",\n        \"name\": \"main_window\",\n        \"width\": 500,\n        \"height\": 500\n    },\n    \"image\": { \n        \"src\": \"Images/Sun.png\",\n        \"name\": \"sun1\",\n        \"hOffset\": 250,\n        \"vOffset\": 250,\n        \"alignment\": \"center\"\n    },\n    \"text\": {\n        \"data\": \"Click Here\",\n        \"size\": 36,\n        \"style\": \"bold\",\n        \"name\": \"text1\",\n        \"hOffset\": 250,\n        \"vOffset\": 100,\n        \"alignment\": \"center\",\n        \"onMouseUp\": \"sun1.opacity = (sun1.opacity / 100) * 90;\"\n    }\n}},\"links\": [{\"rel\":\"self\",\"href\":\"http://127.0.0.1:8080/maps/us/2\"}]}],\"links\": [{\"rel\":\"self\",\"href\":\"http://127.0.0.1:8080/maps/us/search/widget.image.name=%22sun1%22\"},{\"rel\":\"map\",\"href\":\"http://127.0.0.1:8080/maps/us\"}]}"}
+    } = httpc:request(get, {"http://127.0.0.1:8080/maps/us/search/widget.image.name=%22sun1%22", []}, [], []).
+
+    
 
 rest_maps_test(_Config) ->
     _ = [jc:put(<<"map1">>,list_to_binary(integer_to_list(I)),1) || I <- lists:seq(1,5)],
