@@ -27,6 +27,7 @@ rel/jc
 target
 *.gz
 _build
+<<<<<<< HEAD
 *.html
 *.css
 *.js
@@ -35,3 +36,10 @@ test/ct_run.ct@c4b301cb0a29.2017-10-09_19.10.46
 variables-ct@c4b301cb0a29
 .#jc.erl
 #*
+=======
+test/ct_run.ct@c4b301cb0a29.2017-10-09_19.10.46
+test/*.html
+test/*.css
+test/*.js
+variables-ct@*
+>>>>>>> 3af24a3ff337f588a0c8b7ec5ca19d07c177a6be
