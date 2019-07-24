@@ -42,7 +42,8 @@
 -define(SERVER, ?MODULE).
 
 
--record(jc_seq_state, {}).
+-record(jc_seq_state, {singleton :: boolean()}).
+
 
 
 %%% ============================================================================
@@ -58,7 +59,12 @@
 -spec test_set(Map::map(), NewSeq::seq()) -> true | false.
 
 test_set(Map, Seq) ->
-    gen_server:call({global, ?MODULE}, {test_set, Map, Seq}, 1000).
+    case global:whereis_name(?SERVER) of
+        undefined ->
+	    gen_server:call(?SERVER, {test_set, Map, Seq}, 1000);
+	_Pid      ->
+	    gen_server:call({global, ?SERVER}, {test_set, Map, Seq}, 1000)
+    end.
 
 
 %% -----------------------------------------------------------------------------
@@ -78,15 +84,17 @@ start_link() ->
 
 %% -----------------------------------------------------------------------------
 %% @private Initialize the server by trying to register under the global name,
-%% jc_sequence.
+%% jc_sequence. If singleton, try to register jc_sequence globally to this 
+%% process.
 %%
 -spec init([]) -> {ok, #jc_seq_state{}}.
 
 init([]) ->
-    lager:info("~p: up.", [?MODULE]),
+    IsSingleton = application:get_env(jc, jc_sequence_singleton, true),
+    grab_name(IsSingleton),
+    lager:info("~p: up with Singletong = ~p.", [?MODULE, IsSingleton]),
 
-    grab_name(),
-    {ok, #jc_seq_state{}}.
+    {ok, #jc_seq_state{singleton = IsSingleton}}.
 
 
 %% -----------------------------------------------------------------------------
@@ -122,10 +130,10 @@ handle_cast(Msg, State) ->
 %%
 -spec handle_info(any(), #jc_seq_state{}) -> {noreply, #jc_seq_state{}}.
 
-handle_info({'DOWN', _MonitorRef, _Type, Object, Info}, State) ->
-    lager:debug("~p: jc_sequence master at ~p went down with ~p.", 
-		 [?SERVER, Object, Info]),
-    grab_name(),
+handle_info({'DOWN', _MRef, _Type, Obj, Info}, State) ->
+    lager:debug("~p: jc_sequence master at ~p went down with ~p.",
+                [?SERVER, Obj, Info]),
+    grab_name(State#jc_seq_state.singleton),
     {noreply, State};
 
 
@@ -159,12 +167,14 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%% ============================================================================
 
+%% Assuming that jc_sequence is to be a singleton, if the global registry 
+%% doesn't have a PID registered for jc_sequence, then claim it; otherwise, 
+%% monitor the master.
+%%
 
-%% -----------------------------------------------------------------------------
-%% If the global registry doesn't have a PID registered for jc_sequence, then 
-%% claim it; otherwise, monitor the master.
-
-grab_name() ->
+grab_name(false) ->
+    ok;
+grab_name(true) ->
     case global:register_name(?MODULE, self()) of
 	yes ->
 	    lager:info("~p: master is ~p.", [?MODULE, self()]);

@@ -18,7 +18,9 @@
 
 
 %% Module API
--export([start_link/0, do/1]).
+-export([start_link/0]).
+
+-export([do/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -27,8 +29,11 @@
 
 -define(SERVER, ?MODULE).
 
+%% State is just a list of active nodes, used to enable fast response to the
+%% 'which' info_message - see jc_store:locus/2
+%%
+-record(jc_bridge_state, {nodes :: list(node())}).
 
--record(jc_bridge_state, {}).
 
 
 
@@ -56,6 +61,7 @@ do(Message) ->
     ?SERVER ! {self(), Message}.
 
 
+
 %%% ----------------------------------------------------------------------------
 %%% gen_server callbacks
 %%% ----------------------------------------------------------------------------
@@ -68,13 +74,35 @@ do(Message) ->
 
 init([]) ->
     Nodes = application:get_env(jc, cache_nodes,[node()]),
+    UpNodes = [node() | up_nodes(Nodes)],
     lager:info("~p: letting ~p know that this node is ready.", 
 	       [?MODULE, Nodes]),
 
     gen_server:abcast(Nodes, jc_psub, {jc_bridge_up, node()}),
-    lager:info("~p: up.", [?MODULE]),
-    {ok, #jc_bridge_state{}}.
+    subscribe_and_monitor(),
 
+    % Store the cach node names, cnt and subscribe to changes
+
+    lager:info("~p: up.", [?MODULE]),
+
+    {ok, #jc_bridge_state{nodes = UpNodes}}.
+
+
+
+% Return the list of up cache nodes.
+%
+up_nodes(Nodes) ->
+    [N || N <- Nodes, 
+          is_pid(rpc:call(N, erlang, whereis, [jc_bridge], 1000))].
+
+
+% Subscribe to jc_node_events and monitor jc_psub so that if it goes down,
+% jc_bridge can re-subscribe.
+%
+subscribe_and_monitor() ->
+  jc_psub:topic_subscribe(self(), jc_node_events, any),
+  _ = erlang:monitor(process, jc_psub).
+    
 
 %% -----------------------------------------------------------------------------
 %% @private Handling call messages
@@ -100,8 +128,26 @@ handle_cast(Msg, State) ->
 %% -----------------------------------------------------------------------------
 %% @private Handling info messages:
 %% Execute the requested j_cache operation and return the answer to requester.
+%% Also recieve the jc_psub, subscription message notifiying of node up  down.
 %%
 -spec handle_info(any(), #jc_bridge_state{}) -> {noreply, #jc_bridge_state{}}.
+
+handle_info({_From, {jc_node_events, {_Type, _Node, Active, _C}}}, _State) ->
+    NewState = #jc_bridge_state{nodes = Active},
+    lager:info("~p: nodes changed. New actives: ~p.", [?MODULE, Active]),
+    {noreply, NewState};
+
+
+handle_info({'DOWN', _Ref, process, {jc_psub, _Node}, _Info}, State) ->
+    % Need to resubscribe to node up/down messages.
+    lager:info("~p: jc_psub went down. Resubscribing.", [?MODULE]),
+    subscribe_and_monitor(),
+    {noreply, State};
+
+handle_info({From, {locus, Key}}, #jc_bridge_state{nodes=Nodes} = State) ->
+    _Pid = spawn(fun() -> From ! jc_store:locus(Key, Nodes) end),
+    {noreply, State};
+
 
 handle_info({From, {map_subscribe, Map, Key, Ops}}, State) ->
     _Pid = spawn(fun()->From ! jc_psub:map_subscribe(From, Map, Key, Ops) end),
@@ -149,9 +195,8 @@ handle_info({From, {get_max_ttls}}, State) ->
 	spawn(fun()->From ! jc_eviction_manager:get_max_ttls() end),
     {noreply, State};
 
-
 handle_info({From, {put, Map, Key, Value}}, State) ->
-    _Pid = spawn(fun() ->From ! jc:put(Map, Key, Value) end),
+    _Pid = spawn(fun() -> From ! jc:put(Map, Key, Value) end),
     {noreply, State};
 
 handle_info({From, {put_s, Map, Key, Value, Seq}}, State) ->
@@ -202,6 +247,7 @@ handle_info({From, {evict_map_since, Map, Secs}}, State) ->
 handle_info({From, {evict, Map, Key}}, State) ->
     _Pid = spawn(fun() -> From ! jc:evict(Map, Key) end),
     {noreply, State};
+
 handle_info({From, {evict_s, Map, Key, Seq}}, State) ->
     _Pid = spawn(fun() -> From ! jc_s:evict(Map, Key, Seq) end),
     {noreply, State};
@@ -328,4 +374,5 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
 

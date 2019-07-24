@@ -2,7 +2,7 @@ JC
 ====
 ## Erlang, Distributable, In-Memory Cache
 
-### Featuring: Pub/Sub, JSON-query, consistency support, and a simple, TCP interop. protocol.
+### Featuring: Pub/Sub, JSON-query, and mechanisms to support consistency without transactoins.
 
 
 [![Build Status](https://travis-ci.org/jr0senblum/jc.svg?branch=master)](https://travis-ci.org/jr0senblum/jc)
@@ -16,22 +16,45 @@ JC
     in other caching systems
   * Maps, Keys and Values can be any Erlang term
   * TTL is time-to-live in seconds
-* Consistency assist through sequence numbers: An alternative API
-    allows for a sequence-number parameter on the put/x, evict/x,
-    match/x and remove/x operations. Operations whose sequence
-    number is lower than the current, per-map max are disallowed 
-    thereby ensuring, for example, that stale puts do not 
-    overwrite newer ones due to the newer one beating the stale
-    ones to the cache.
-*  JSON query support
-   * Query by JSON: When Values are JSON, evict_match/2,
+* Consistency assist
+  * Client-Side Sequence Number: An alternative API allows for a sequence-number
+    parameter on the put/x, evict/x, match/x and remove/x operations. Operations
+    whose sequence number is lower than the current, per-map max are disallowed
+    thereby ensuring, for example, that an old delete that shows up after a newer update
+    does not inappropriately evict the newer update.
+  * Node of Responsibility: A key-specific node can be identified for destructive
+    operations (put, evict, etc.) thereby preserving eventual consistency without transactions. 
+      * jc_store:locus/2 takes a Key and a list of nodes and returns the node of 
+    responsibility or the given key.
+      * jc_bridge accepts a message {From, {locus, Key}} and returns the node of
+      responsibility. Because jc\_bridge knows which nodes are available, the client
+      is relieved from keeping track of up-nodes, which is necessary to
+      caclulate the correct node of responsiblility. For example:
+  
+ ~~~~ Erlang
+    {jc_bridge, Any_Cache_Node} ! {self(), {locus, Key}},
+    NOR = receive
+        {error, _} -> error
+              Node -> Node
+    after
+        1000 -> error
+    end,
+    {jc_bridge, NOR} ! {self, {put, benchtest, 10203, "{\"Key\":\"Value\"}
+ ~~~~  
+    Because data is everywhere, a lookup will always find a key irrespective of 
+    the node of responsibility. The way to best use this is to configure jc_sequence
+    to not be a singleton and then use the Node of Responsibility feature to chose
+    the node to do the inserts/deletes using the jc_s API.
+    
+* JSON query support
+  * Query by JSON: When Values are JSON, evict_match/2,
     evict_all_match/1 and values_match/2 will search or evict
     keys whose JSON value, at a location specificed by a java-style, 
     dot-path string, equals the given value. That is,
     jc:values_match(bed, "id.type=3") would return all values, in the given
     map (bed), where that value was a JSON object, id, with a "type":3
     at its top-level.
-   * Ad-hoc, index support: In order to support faster
+  * Ad-hoc, index support: In order to support faster
     operations, (2-3 orders of magnitude), each map can have up to four,
     dot-path, strings configured (or added at run-time) for which jc will
     provide index support.
@@ -51,12 +74,6 @@ JC
   * Clients can create and subscribe to arbitrary 'topics' and 
   broadcast arbitrary messages under those topic names
   * Clients can subscribe to node-up and node-down events 
-* Interopability
-  * Binary string over TCP returning JSON (EXPERIMENTAL)
-  * Bridge process that accepts messages from a client indicating
-    cache operations, executes the cache operations and returns the
-    results to the client. This has been used with JInterface to 
-    interoperate with CLOJURE and Java clients
 * Fine-grained logging via Lager
 
 
@@ -134,8 +151,7 @@ Identical to the Create and Evict family of functions of the jc module
   * Broadcasts Value to all
   subscribers of Topic
 * topic_subscribe(Pid, jc_node_events, any) -> ok 
-  * subscribtes the user
-  to node up and node down events:
+  * subscribes the user to node up and node down events:
   
   `{jc_node_events, {nodedown, DownedNode, [ActiveNodes],[ConfiguredNodes]}}`
   
@@ -163,6 +179,9 @@ Identical to the Create and Evict family of functions of the jc module
     `jc_bridge ! {Pid, {put, Map, Key, Value}}`
     
 * Additionally, 
+  `{From, locus, Key}} -> node()` Calls jc_store:locus/2 with the list of active
+  cache nodes and returns the node of record.
+
 
   {From, {node_topic_sub}} -> ok | {error, badarg}, 
   client will recieve:
@@ -173,67 +192,7 @@ Identical to the Create and Evict family of functions of the jc module
 
     `{jc_node_events, {nodeup, UppedNode, [ActiveNodes],[ConfiguredNodes]}}`
 
-  {From, {node_topic_unsub}} -> ok.
-
-
-### Interoperability: Socket Protocol - EXPERIMENTAL
-Binary-encoded, string protocol used to provide socket-based
-interoperability with JC. 
-
-All messages to JC are string representations of a tuple. All
-messages form the caching system to the client are JSON
-
-The protocol defines three message types: CONNECT, CLOSE and COMMAND all 
-of which are binary strings consisting of an 8-byte size followed by the
-actual command messages.
-
-Responses are also binary strings with an 8-byte size prefix.
-
-The CONNECT command initiates a session, 
-
-    M = <<"{connect,{version,\"1.0\"}}">> 
-
-    Size is 25, so the CONNECT message is:
-
-    <<25:8, M/binary>> = 
-    <<25,40,58,99,111,110,110,101,99,116,32,123,58,118,101,
-      114,115,105,111,110,32,49,46,48,125,41>> 
-
-The server will respond to a CONNECT command with either an error or
-the encoded version of {"version":" "1.0"}
-
-    <<15:8, <<"{\"version\":\"1.0\"}">> = 
-    <<15,123,34,118,101,114,115,105,111,110,34,58,49,46,48,125>>
-
-The CLOSE command closes the socket, ending the session
-
-    M = <<"{close}">>
-
-     Size is 7 so the CLOSE message is:
-     <<7,123,99,108,111,115,101,125>>
-
-
-COMMAND messages are string versions of the tuple-messages, which 
-jc_bridge uses, without the self() parameter. For example
-
-    {self(), {put, Map, Key, Value}} becomes 
-    {put, Map, Key, Value}
-
-The return will be an encoded version of a JSON string. A client session 
-might look as follows:
-
-    client:send("{put, evs, \"1\", \"{\\\"value:\\\":true}\"}")
-    <<"{\"ok\":\"1\"}">>
-
-    client:send("{get, evs, \"1\"}"),
-    <<"{\"ok\":"{\\\"value\\\":true}\"}">>
-    
-    client:send("{put, evs, 1, \"{\\\"value:\\\":true}\"}")
-    <<"{\"ok\":1}">>
-
-    client:send("{get, evs, 1}"),
-    <<"{\"ok\":"{\\\"value\\\":true}\"}">>
-    
+   `{From, {node_topic_unsub}} -> ok`.
 
 
 ### Configuration
@@ -248,12 +207,10 @@ might look as follows:
 * jc, jc_s, jc_store, jc_eviction_manager
   * Caching operations, Key-specific and Map-level TTLs
 * jc_sequence
-  * Singleton service enforcing strictly monotonic sequence 
+  * [optionally] Singleton service enforcing strictly monotonic sequence 
   numbers on jc_s operations
 * jc_analyzer
   * Analysis and indexing inititation of JSON query strings
-* jc_protocol
-  * Socket processing of messages and Erlang -> JSON
 * jc_psub: 
   * Pub / Sub of cache write and delete events
   * On-demand, ad-hoc topic events

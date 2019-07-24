@@ -159,8 +159,8 @@ init()->
 
 
 %% -----------------------------------------------------------------------------
-%% @private Jcache is considered loaded if jc_psub is up - it is the last gen_server
-%% started by the superviosr.
+%% @private Jcache is considered loaded if jc_psub is up - it is the last 
+%% gen_server started by the superviosr.
 %%
 -spec jc_loaded(Node::node()) -> true | false.
 
@@ -179,7 +179,7 @@ dynamic_db_init([]) ->
 
     mnesia:create_table(key_to_value,
 			[{attributes, record_info(fields, key_to_value)},
-			 {type, ordered_set},
+			 {type, set},
 			 {index, [map, key, ref, create_tm]}
 			]),
 
