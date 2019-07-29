@@ -100,8 +100,11 @@ JC
   * clear(Map) -> ok
   * flush() -> ok
   * flush(silent) -> ok, Does not send alerts to subscribers
+
 * Predicates
   * contains_key(Map, Key) -> true | false.
+  * map_exists(Map) -> true | false.
+
 * Meta
   * cache_nodes() -> {{active, [Node1,... ]}, {configured, [Node1,... ]}}
   * cache_size() -> {size, [{TableName, RecordCnt, Words}],...}

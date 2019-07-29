@@ -31,12 +31,15 @@
          remove_items/2]).
 
 % Get Functions
--export([contains_key/2,
-	 get/2,
+-export([get/2,
 	 get_all/2,
 	 key_set/1,
 	 values/1,
 	 values_match/2]).
+
+% Predicates
+-export([contains_key/2,
+         map_exists/1]).
 
 % Control
 -export([stop/0]).
@@ -368,21 +371,6 @@ remove_items(Map, Keys)->
 
 
 %% -----------------------------------------------------------------------------
-%% @doc Return true if the {@link key(). Key} is in the {@link map_name()}, 
-%% else false.
-%%
--spec contains_key(Map::map_name(), Key::key()) -> true | false.
-
-contains_key(Map, Key) ->
-    case get(Map, Key) of
-	{ok, _} ->
-	    true;
-	_ ->
-	    false
-    end.
-
-
-%% -----------------------------------------------------------------------------
 %% @doc Retrieve the data associated with Key.
 %%						%
 -spec get(map_name(), key()) -> {ok, value()} | miss.
@@ -475,6 +463,37 @@ fun_match(Map, Criteria, Fun) ->
 	    {ok, trans_execute(Trans)}
     end.
 
+
+		
+%% =============================================================================
+%% Predicate API
+%% =============================================================================
+
+
+%% -----------------------------------------------------------------------------
+%% @doc Return true if the {@link key(). Key} is in the {@link map_name()}, 
+%% else false.
+%%
+-spec contains_key(Map::map_name(), Key::key()) -> true | false.
+
+contains_key(Map, Key) ->
+    case get(Map, Key) of
+	{ok, _} ->
+	    true;
+	_ ->
+	    false
+    end.
+
+
+%% -----------------------------------------------------------------------------
+%% @doc Return true if the given {@map mpa(). Map} exists, else false.
+%% 
+-spec map_exists(Map::map_name()) -> true | false.
+
+map_exists(Map) ->
+    F = fun() -> jc_store:map_exists(Map) end,
+    trans_execute(F).
+                 
 
 		
 %% =============================================================================

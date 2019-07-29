@@ -224,12 +224,15 @@ meta_data_test(_Config) ->
 % put_s should create map if not there
 % deleting last item from map should remove it from use
 maps_test(_Config) ->
+
+    false = jc:map_exists(bed),
     {maps, []} = bridge({maps}),
     {ok, 1} = bridge({put, bed, 1, 1}),
     {ok, 1} = bridge({put, evs, 1, 1}),
     {ok, 2} = bridge({put, evs, 2, 2}),
     {ok, 2} = bridge({put_s, trx, 2, 2, 22}),
     {maps, [bed, evs, trx]} = bridge({maps}),
+    true = jc:map_exists(bed),
     bridge({evict, bed, 1}),
     {maps, [evs, trx]} = bridge({maps}),
     bridge({evict, evs, 1}),
