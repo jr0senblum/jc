@@ -228,9 +228,12 @@ meta_data_test(_Config) ->
 % put_s should create map if not there
 % deleting last item from map should remove it from use
 maps_test(_Config) ->
+
+
     {maps, []} = bridge({maps}),
     {ok, 1} = bridge({put, bed, 1, 1}),
     {ok, 1} = bridge({put, evs, 1, 1}),
+    true = jc:map_exists(bed),
     {ok, 2} = bridge({put, evs, 2, 2}),
     {ok, 2} = bridge({put_s, trx, 2, 2, 22}),
     {maps, [bed, evs, trx]} = bridge({maps}),
@@ -1022,7 +1025,7 @@ cluster_test(_Config) ->
     collect_error = collect().
 
 rest_values_match_test(_Confi) ->
-    A= "{\"widget\": {\n    \"debug\": \"on\",\n    \"window\": {\n        \"title\": \"Sample Konfabulator Widget\",\n        \"name\": \"main_window\",\n        \"width\": 500,\n        \"height\": 500\n    },\n    \"image\": { \n        \"src\": \"Images/Sun.png\",\n        \"name\": \"sun1\",\n        \"hOffset\": 250,\n        \"vOffset\": 250,\n        \"alignment\": \"center\"\n    },\n    \"text\": {\n        \"data\": \"Click Here\",\n        \"size\": 36,\n        \"style\": \"bold\",\n        \"name\": \"text1\",\n        \"hOffset\": 250,\n        \"vOffset\": 100,\n        \"alignment\": \"center\",\n        \"onMouseUp\": \"sun1.opacity = (sun1.opacity / 100) * 90;\"\n    }\n}}",
+    A= "{\"widget\":{\"debug\":\"on\",\"window\":{\"title\":\"Sample Konfabulator Widget\",\n        \"name\": \"main_window\",\n        \"width\": 500,\n        \"height\": 500\n    },\n    \"image\": { \n        \"src\": \"Images/Sun.png\",\n        \"name\": \"sun1\",\n        \"hOffset\": 250,\n        \"vOffset\": 250,\n        \"alignment\": \"center\"\n    },\n    \"text\": {\n        \"data\": \"Click Here\",\n        \"size\": 36,\n        \"style\": \"bold\",\n        \"name\": \"text1\",\n        \"hOffset\": 250,\n        \"vOffset\": 100,\n        \"alignment\": \"center\",\n        \"onMouseUp\": \"sun1.opacity = (sun1.opacity / 100) * 90;\"\n    }\n}}",
     
     jc:put(<<"us">>,<<"1">>,list_to_binary(A)),
     jc:put(<<"us">>,<<"2">>,list_to_binary(A)),
@@ -1033,7 +1036,8 @@ rest_values_match_test(_Confi) ->
           _,
           {"content-type","application/json"}],
          "{\"map\":\"us\", \"results\": [{\"key\":\"1\",\"value\":{\"widget\": {\n    \"debug\": \"on\",\n    \"window\": {\n        \"title\": \"Sample Konfabulator Widget\",\n        \"name\": \"main_window\",\n        \"width\": 500,\n        \"height\": 500\n    },\n    \"image\": { \n        \"src\": \"Images/Sun.png\",\n        \"name\": \"sun1\",\n        \"hOffset\": 250,\n        \"vOffset\": 250,\n        \"alignment\": \"center\"\n    },\n    \"text\": {\n        \"data\": \"Click Here\",\n        \"size\": 36,\n        \"style\": \"bold\",\n        \"name\": \"text1\",\n        \"hOffset\": 250,\n        \"vOffset\": 100,\n        \"alignment\": \"center\",\n        \"onMouseUp\": \"sun1.opacity = (sun1.opacity / 100) * 90;\"\n    }\n}},\"links\": [{\"rel\":\"self\",\"href\":\"http://127.0.0.1:8080/maps/us/1\"}]},{\"key\":\"2\",\"value\":{\"widget\": {\n    \"debug\": \"on\",\n    \"window\": {\n        \"title\": \"Sample Konfabulator Widget\",\n        \"name\": \"main_window\",\n        \"width\": 500,\n        \"height\": 500\n    },\n    \"image\": { \n        \"src\": \"Images/Sun.png\",\n        \"name\": \"sun1\",\n        \"hOffset\": 250,\n        \"vOffset\": 250,\n        \"alignment\": \"center\"\n    },\n    \"text\": {\n        \"data\": \"Click Here\",\n        \"size\": 36,\n        \"style\": \"bold\",\n        \"name\": \"text1\",\n        \"hOffset\": 250,\n        \"vOffset\": 100,\n        \"alignment\": \"center\",\n        \"onMouseUp\": \"sun1.opacity = (sun1.opacity / 100) * 90;\"\n    }\n}},\"links\": [{\"rel\":\"self\",\"href\":\"http://127.0.0.1:8080/maps/us/2\"}]}],\"links\": [{\"rel\":\"self\",\"href\":\"http://127.0.0.1:8080/maps/us/search/widget.image.name=%22sun1%22\"},{\"rel\":\"map\",\"href\":\"http://127.0.0.1:8080/maps/us\"}]}"}
-    } = httpc:request(get, {"http://127.0.0.1:8080/maps/us/search/widget.image.name=%22sun1%22", []}, [], []).
+    } = httpc:request(get, {"http://127.0.0.1:8080/maps/us/search/widget.image.name=%22sun1%2
+2", []}, [], []).
 
     
 

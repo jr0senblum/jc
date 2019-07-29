@@ -40,6 +40,7 @@
 	 flush/1,
 	 get/2,
 	 get_map/1, get_map_since/2, key_set/1,
+         map_exists/1,
 	 maps/0,
 	 put/5]).
 
@@ -104,6 +105,25 @@ stats(up) ->
 stats(_) ->
     {error, badarg}.
 
+
+%%------------------------------------------------------------------------------
+%% @doc Return true if map exists, else false.
+%% 
+-spec map_exists(map()) -> [true | false].
+map_exists(MapName) ->
+    LocInRec = #key_to_value.map,
+    F = fun() -> 
+                mnesia:select(key_to_value,
+                              [{'$1', [{'==', MapName, {element, LocInRec, '$1'}}],
+                                [{element, LocInRec,'$1'}]}],
+                              1, 
+                              read) end, 
+    case mnesia:async_dirty(F) of
+        '$end_of_table' ->
+            false;
+        _ ->
+            true
+    end.
 
 %%------------------------------------------------------------------------------
 %% @doc Return a sorted list of all maps currently in the cache.
