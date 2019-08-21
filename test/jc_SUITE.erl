@@ -844,9 +844,15 @@ map_subscribe_test(_Config) ->
     timer:sleep(100),
     This = self(),
     true = lists:member(This, mnesia:dirty_all_keys(ps_client)),
-    [{ps_sub, {map_sub, bed, key, write}, Set}] = 
-	mnesia:dirty_read(ps_sub, mnesia:dirty_next(ps_sub, mnesia:dirty_first(ps_sub))),
-    sets:is_element(self(), Set),
+    A = mnesia:dirty_read(ps_sub, mnesia:dirty_next(ps_sub, mnesia:dirty_first(ps_sub))),
+    case A of
+        [{ps_sub, {map_sub, bed, key, write}, Set}] -> 
+            sets:is_element(self(), Set);
+        _ ->
+            [{ps_sub, {map_sub, bed, key, write}, Set2}]  = 
+                mnesia:dirty_read(ps_sub, mnesia:dirty_first(ps_sub)),
+            sets:is_element(self(), Set2)
+    end,
 
     2 = jc_psub:client_count(),
     4 = jc_psub:load(),
