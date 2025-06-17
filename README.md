@@ -4,7 +4,7 @@ JC
 
 ### Featuring: Pub/Sub, JSON-query, and mechanisms to support consistency without transactoins.
 
-
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/jr0senblum/jc)
 [![Build Status](https://travis-ci.org/jr0senblum/jc.svg?branch=master)](https://travis-ci.org/jr0senblum/jc)
 [![hex.pm version](https://img.shields.io/hexpm/v/jc.svg)](https://hex.pm/packages/jc)
 
